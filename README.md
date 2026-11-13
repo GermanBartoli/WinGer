@@ -2,16 +2,26 @@
 
 Panel de escritorio para Windows con **C# · .NET 10 · WinUI 3**, orientado a actualizaciones con WinGet y comprobaciones con VirusTotal.
 
-## Primera versión · 0.1.0
+## Versión 0.2.0
 
-- Consulta las actualizaciones disponibles mediante WinGet, sin instalar programas.
+- Caché persistente de búsquedas, selección, filtros, hashes y resultados. Al reabrir se conservan las detecciones y su color, con la etiqueta «Guardado» y la fecha de búsqueda. No hace falta consultar de nuevo para ver el resultado; antes de instalar se verifica el archivo real.
+- **Borrar caché**, en Configuración, limpia la sesión y los informes reutilizables; conserva ajustes, credenciales, historial e instaladores.
+- Consulta automática **VTAI** al buscar actualizaciones, sin clave clásica ni subida de archivos. WinGer registra su propia conexión una sola vez y protege el token en Windows; también permite importar uno existente. No crea otra identidad automáticamente ante errores.
+- **Leer web · experimental** importa las filas visibles y la fecha del informe en una ventana integrada. También puede seleccionarse como consulta automática en Configuración. No usa API internas ni elude verificaciones del sitio. Si no puede leer el informe, queda pendiente.
+- Informes API y VTAI reutilizables durante una hora entre sesiones, separados por fuente y hash. La lectura web queda como evidencia informativa y no autoriza instalaciones.
+- Tarjetas seleccionables, búsqueda, selección múltiple y menú con clic derecho por aplicación.
+- Consulta previa a la descarga del hash publicado por WinGet: botón **Ver en VirusTotal · sin API** para abrir el informe existente en el navegador, sin clave ni consumo de tu cuota de API.
+- Consulta opcional del informe existente por API para mostrar estados verde, rojo, amarillo y gris en cada tarjeta; no solicita análisis nuevos. Se espacian peticiones y se reutilizan durante una hora los resultados del mismo hash en disco.
+- Descarga y verificación del archivo real al actualizar.
+- Actualización del instalador comprobado: revalida hash, firma e informe de vt-cli antes de ejecutarlo y comprueba después la versión instalada.
 - Centro VirusTotal: consulta de hashes MD5, SHA-1 y SHA-256 por API.
 - Calcula el SHA-256 de archivos locales sin subirlos.
 - Integración independiente con **vt-cli**: consulta de hashes, subida con confirmación y consulta por ID de análisis.
 - Historial local de las últimas 200 operaciones.
 - Temas del sistema, oscuro y claro.
-- Opción para minimizar a la barra de tareas al cerrar con la cruz; salida definitiva desde Configuración.
-- Clave protegida en el Administrador de credenciales de Windows.
+- Opción para cerrar a la bandeja del sistema, junto al reloj: clic en el icono W para restaurar, menú derecho para abrir o salir.
+- Instancia única: abrir de nuevo el acceso directo restaura la ventana existente.
+- Clave protegida en el Administrador de credenciales de Windows, con indicador persistente de que ya está guardada.
 
 La API y vt-cli consultan el mismo servicio de VirusTotal; no son dos motores antivirus distintos. Consultar un hash no sube el archivo. Subirlo puede compartir su contenido con terceros, por lo que WinGer pide confirmación cada vez. Cero detecciones no garantiza seguridad.
 
@@ -38,13 +48,23 @@ dotnet run --project tests/WinGer.Pruebas -c Release
 - `tests/WinGer.Pruebas`: verificaciones sin servicios externos ni dependencias de pruebas adicionales.
 - `scripts/Publicar.ps1`: publicación autónoma para Windows x64.
 
-Configuración e historial se guardan en `%LOCALAPPDATA%\WinGer`. La clave se almacena con el recurso `WinGer.VirusTotal` en Windows; vt-cli la recibe como variable de entorno de su proceso, nunca como argumento ni en el historial.
+Configuración, historial y descargas se guardan en `%LOCALAPPDATA%\WinGer`. La clave se almacena con el recurso `WinGer.VirusTotal` en Windows; vt-cli la recibe como variable de entorno de su proceso, nunca como argumento ni en el historial. Los instaladores se conservan para inspección; podés borrar la carpeta `Descargas` cuando no haya operaciones en curso, pero deberás analizarlos otra vez.
+
+La integración de bandeja utiliza el componente NotifyIcon de Windows Forms; el panel sigue siendo WinUI 3. YamlDotNet interpreta los manifiestos que descarga WinGet.
 
 ## Alcance pendiente
 
-Esta entrega es una base funcional, no un reemplazo completo de UniGetUI. La salida de WinGet se presenta como texto; la selección de paquetes, exclusiones propias y actualización de programas están pendientes. Antes de habilitar instalaciones, se validará la descarga, la firma, el hash, las dependencias y que el archivo ejecutado sea exactamente el comprobado. No hay instalaciones automáticas, icono de bandeja ni tareas programadas.
+Antes de descargar, verde significa que el informe del hash publicado tiene motores analizados, cero detecciones y cero sospechas, y fecha dentro de los últimos 30 días; el archivo todavía no está verificado. **Ver web** abre el navegador; **Leer web · experimental** importa la evidencia visible y mantiene amarillo cuando no hay detecciones. VTAI muestra detecciones y sospechas con su fuente. La instalación sigue requiriendo las comprobaciones con la clave clásica y vt-cli.
 
-La API se prueba con respuestas simuladas (incluidos errores 401, 403, 404 y 429). No se suben archivos durante las pruebas. Las credenciales reales y las subidas requieren validación manual con una cuenta del usuario.
+Para instalar se admiten MSI/WiX y EXE/Inno/Nullsoft/Burn con firma válida, sin dependencias declaradas ni desinstalación previa requerida. El hash del archivo real debe coincidir con el manifiesto exacto. La aprobación local vence después de una hora. Ningún estado verde representa una garantía de seguridad.
+
+Sin firma, sin informe, con un informe antiguo, con dependencias o formatos no implementados, el programa queda pendiente en amarillo. Las detecciones y fallos de integridad impiden la instalación. WinGer no sube instaladores automáticamente ni omite comprobaciones fallidas.
+
+Las actualizaciones requieren pulsar el botón y confirmar la selección. Se ejecuta el mismo archivo local bajo un bloqueo de escritura, no una nueva descarga de WinGet. Los EXE pueden mostrar el asistente del fabricante; los MSI se ejecutan sin reinicio automático. Windows puede pedir elevación. Cancelar detiene la cola, no un instalador iniciado. Un fabricante puede descargar componentes adicionales dentro de su propio asistente, fuera del análisis del instalador inicial.
+
+La lectura de la lista de WinGet admite cabeceras en español e inglés y omite identificadores truncados o versiones desconocidas. No hay actualizaciones programadas ni soporte para otros gestores. La comprobación posterior de versión es conservadora: si no coincide exactamente, queda pendiente de confirmar.
+
+La API se prueba con respuestas simuladas (incluidos errores 401, 403, 404 y 429), y existen verificaciones para manifiestos, reglas de aprobación y salida de vt-cli. Se puede ejecutar `dotnet run --project tests/WinGer.Pruebas -c Release -- --integracion-winget --integracion-firma` para comprobar la lista y firmas reales sin instalar ni subir archivos. Las instalaciones completas y las subidas requieren validación manual.
 
 ## Autoría
 

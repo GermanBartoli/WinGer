@@ -13,28 +13,39 @@ public sealed partial class MainWindow : Window
     public PanelViewModel Modelo { get; } = new();
     private readonly AlmacenLocal almacen = new();
     private readonly EjecutorProcesos procesos = new();
-    private readonly ServicioVirusTotal virus = new(new HttpClient { Timeout = TimeSpan.FromSeconds(60) });
+    private readonly ServicioVirusTotal virus;
+    private DateTimeOffset? ultimaBusqueda;
     private readonly PasswordVault credenciales = new();
     private Configuracion configuracion;
     private CancellationTokenSource? cancelacion;
     private bool salir;
     private bool inicializado;
-    private string salidaWinget = "Buscá actualizaciones para consultar los programas detectados por WinGet.";
     private string salidaVirus = "Consultá un hash o calculá el SHA-256 de un archivo local. Calcular el hash no sube el archivo.";
     private string hashActual = "";
     private TextBox? resultados;
+    private BandejaSistema? bandeja;
+    private readonly List<Paquete> paquetes = [];
+    private GridView? listaPaquetes;
+    private TextBlock? contadorPaquetes;
+    private string filtroPaquetes = "";
+    private ServicioPaquetes Gestor => new(procesos, virus);
 
     public MainWindow()
     {
         configuracion = almacen.LeerConfiguracion();
+        virus = new(new HttpClient { Timeout = TimeSpan.FromSeconds(60) }, almacen);
+        RestaurarCache();
         InitializeComponent();
         AppWindow.Resize(new Windows.Graphics.SizeInt32(1180, 800));
+        bandeja = new BandejaSistema(this, Salir);
+        Closed += (_, _) => bandeja.Dispose();
         AppWindow.Closing += (_, e) =>
         {
+            GuardarCache();
             if (!salir && configuracion.MinimizarAlCerrar)
             {
                 e.Cancel = true;
-                (AppWindow.Presenter as OverlappedPresenter)?.Minimize();
+                AppWindow.Hide();
             }
             else cancelacion?.Cancel();
         };
@@ -56,6 +67,8 @@ public sealed partial class MainWindow : Window
     private void Encabezado(string titulo, string descripcion)
     {
         Contenido.Children.Clear();
+        listaPaquetes = null;
+        contadorPaquetes = null;
         resultados = null;
         Contenido.Children.Add(new TextBlock { Text = titulo, FontSize = 32, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
         Contenido.Children.Add(new TextBlock { Text = descripcion, TextWrapping = TextWrapping.Wrap, Opacity = 0.7 });
@@ -100,37 +113,35 @@ public sealed partial class MainWindow : Window
             Modelo.Estado = error.Message;
             almacen.Registrar(nombre, "No completado");
         }
-        finally { cancelacion = null; Modelo.Ocupado = false; }
+        finally { cancelacion = null; Modelo.Ocupado = false; GuardarCache(); }
     }
     private void MostrarActualizaciones()
     {
-        Encabezado("Tus actualizaciones", "Revisá lo que WinGet tiene disponible. Esta primera versión consulta; todavía no instala programas.");
-        var tarjetas = Fila();
-        foreach (var (titulo, detalle) in new[] { ("01 · Descubrir", "Actualizaciones con WinGet"), ("02 · Comprobar", "Hash e informes de VirusTotal"), ("03 · Instalar", "Próxima etapa · aún deshabilitada") })
-        {
-            var interior = new StackPanel { Spacing = 8 };
-            interior.Children.Add(new TextBlock { Text = titulo, FontSize = 18, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
-            interior.Children.Add(Texto(detalle));
-            tarjetas.Children.Add(new Border { Child = interior, Padding = new Thickness(16), CornerRadius = new CornerRadius(12),
-                Background = (Brush)Application.Current.Resources["CardBackgroundFillColorDefaultBrush"] });
-        }
-        Contenido.Children.Add(tarjetas);
-        Contenido.Children.Add(Boton("Buscar actualizaciones", () => Ejecutar("Consulta de WinGet", async token =>
-        {
-            var caja = resultados;
-            var respuesta = await procesos.EjecutarAsync("winget.exe", ["list", "--upgrade-available", "--source", "winget", "--disable-interactivity"], token);
-            salidaWinget = respuesta.Salida;
-            if (caja is not null) caja.Text = salidaWinget;
-            if (respuesta.Codigo != 0) throw new InvalidOperationException($"WinGet terminó con código {respuesta.Codigo}. Revisá su salida; puede requerir aceptar los acuerdos del origen desde la terminal.");
-        })));
-        Salida(salidaWinget);
-        Contenido.Children.Add(Texto("Se respetan las exclusiones de WinGet y no se incluyen versiones desconocidas. No se ejecutan actualizaciones automáticamente."));
+        Encabezado("Tus actualizaciones", "Buscá actualizaciones y consultá sus hashes automáticamente con VTAI, sin clave clásica. Podés elegir lectura web experimental en Configuración.");
+        var acciones = Fila();
+        acciones.Children.Add(Boton("Buscar actualizaciones", BuscarPaquetes));
+        acciones.Children.Add(Boton("Consultar selección · API", () => AnalizarGrupo(paquetes.Where(p => p.Seleccionado).ToArray())));
+        acciones.Children.Add(Boton("Actualizar selección…", () => ActualizarGrupo(paquetes.Where(p => p.Seleccionado).ToArray())));
+        Contenido.Children.Add(acciones);
+        var buscar = new TextBox { PlaceholderText = "Buscar por nombre o identificador", Text = filtroPaquetes };
+        buscar.TextChanged += (_, _) => { filtroPaquetes = buscar.Text; FiltrarPaquetes(); GuardarCache(); };
+        Contenido.Children.Add(buscar);
+        var seleccion = Fila();
+        seleccion.Children.Add(Boton("Seleccionar visibles", () => { foreach (var p in Visibles()) p.Seleccionado = true; ActualizarContador(); return Task.CompletedTask; }));
+        seleccion.Children.Add(Boton("Limpiar selección", () => { foreach (var p in paquetes) p.Seleccionado = false; ActualizarContador(); return Task.CompletedTask; }));
+        contadorPaquetes = Texto(""); seleccion.Children.Add(contadorPaquetes); Contenido.Children.Add(seleccion);
+        Contenido.Children.Add(Texto("● Verde: informe sin detecciones, archivo aún sin verificar   ● Rojo: bloqueado   ● Amarillo: revisar   ● Gris: sin consulta vigente"));
+        listaPaquetes = new GridView { SelectionMode = ListViewSelectionMode.None, IsItemClickEnabled = false,
+            ItemTemplate = (DataTemplate)Raiz.Resources["TarjetaPaquete"], HorizontalAlignment = HorizontalAlignment.Stretch };
+        Contenido.Children.Add(listaPaquetes);
+        FiltrarPaquetes();
+        Contenido.Children.Add(Texto("Consultar un informe existente no vuelve a analizar ni sube el archivo. El botón web no consume tu cuota de API. Al actualizar se descarga y verifica el archivo real; verde no garantiza seguridad."));
     }
     private void MostrarVirus()
     {
         Encabezado("Centro VirusTotal", "Dos accesos al mismo servicio: API para informes de hashes y vt-cli para consultar, subir archivos y recuperar análisis.");
         var hash = new TextBox { Header = "Hash MD5, SHA-1 o SHA-256", PlaceholderText = "Pegá el hash o calculalo desde un archivo", Text = hashActual };
-        hash.TextChanged += (_, _) => hashActual = hash.Text;
+        hash.TextChanged += (_, _) => { hashActual = hash.Text; GuardarCache(); };
         Contenido.Children.Add(hash);
         var fila = Fila();
         fila.Children.Add(Boton("Consultar hash · API", () => Ejecutar("Informe por API", async token =>
@@ -212,15 +223,17 @@ public sealed partial class MainWindow : Window
     private void MostrarConfiguracion()
     {
         Encabezado("Configuración", "Personalizá WinGer. Los ajustes se guardan para tu usuario de Windows.");
-        var minimizar = new ToggleSwitch { Header = "Al cerrar con la cruz", OnContent = "Minimizar a la barra de tareas", OffContent = "Cerrar WinGer", IsOn = configuracion.MinimizarAlCerrar };
+        var minimizar = new ToggleSwitch { Header = "Al cerrar con la cruz", OnContent = "Mantener en la bandeja del sistema", OffContent = "Cerrar WinGer", IsOn = configuracion.MinimizarAlCerrar };
         minimizar.Toggled += (_, _) => GuardarAjuste(() => configuracion.MinimizarAlCerrar = minimizar.IsOn);
         Contenido.Children.Add(minimizar);
-        Contenido.Children.Add(Texto("La ventana permanece en la barra de tareas; esta versión no utiliza un icono en la bandeja del sistema."));
+        Contenido.Children.Add(Texto("El icono W aparece junto al reloj, posiblemente dentro de la flecha de iconos ocultos. Un clic abre WinGer; clic derecho permite salir."));
         var tema = new ComboBox { Header = "Apariencia", ItemsSource = new[] { "Predeterminado", "Oscuro", "Claro" }, SelectedItem = configuracion.Tema, Width = 220 };
         tema.SelectionChanged += (_, _) => GuardarAjuste(() => { configuracion.Tema = tema.SelectedItem?.ToString() ?? "Predeterminado"; AplicarTema(); });
         Contenido.Children.Add(tema);
         var clave = new PasswordBox { Header = "Clave de API de VirusTotal", PlaceholderText = "Ingresá una clave para guardarla o reemplazarla", MaxWidth = 520, HorizontalAlignment = HorizontalAlignment.Left };
         Contenido.Children.Add(clave);
+        var estadoClave = Texto(EstadoClave());
+        Contenido.Children.Add(estadoClave);
         Contenido.Children.Add(Texto("Se almacena en el Administrador de credenciales de Windows. Nunca se escribe en el repositorio ni en el historial. vt-cli la recibe únicamente en el entorno de su proceso."));
         var botones = Fila();
         botones.Children.Add(Boton("Guardar clave", () =>
@@ -229,6 +242,7 @@ public sealed partial class MainWindow : Window
             if (!System.Text.RegularExpressions.Regex.IsMatch(valor, @"\A[a-fA-F0-9]{64}\z")) throw new ArgumentException("La clave de VirusTotal debe tener 64 caracteres hexadecimales.");
             credenciales.Add(new PasswordCredential("WinGer.VirusTotal", "usuario", valor));
             clave.Password = "";
+            estadoClave.Text = EstadoClave();
             Modelo.Estado = "Clave protegida y guardada en Windows.";
             return Task.CompletedTask;
         }));
@@ -236,6 +250,7 @@ public sealed partial class MainWindow : Window
         {
             try { credenciales.Remove(credenciales.Retrieve("WinGer.VirusTotal", "usuario")); }
             catch (System.Runtime.InteropServices.COMException) { }
+            estadoClave.Text = EstadoClave();
             Modelo.Estado = "No hay una clave guardada para WinGer.";
             return Task.CompletedTask;
         }));
@@ -246,7 +261,14 @@ public sealed partial class MainWindow : Window
             var vt = await procesos.EjecutarAsync("vt.exe", ["version"], token);
             await new ContentDialog { XamlRoot = Raiz.XamlRoot, Title = "Herramientas disponibles", Content = $"WinGet: {winget.Salida}\nvt-cli: {vt.Salida}", CloseButtonText = "Cerrar" }.ShowAsync();
         })));
-        Contenido.Children.Add(Boton("Salir de WinGer", () => { salir = true; Close(); return Task.CompletedTask; }));
+        MostrarOpcionesCache();
+        Contenido.Children.Add(Boton("Salir de WinGer", () => { Salir(); return Task.CompletedTask; }));
+    }
+    private void Salir() { salir = true; Close(); }
+    private string EstadoClave()
+    {
+        try { credenciales.Retrieve("WinGer.VirusTotal", "usuario"); return "✓ Clave guardada y protegida en Windows. No se muestra por seguridad."; }
+        catch { return "Sin clave guardada. Ingresá tu clave para habilitar los análisis."; }
     }
     private void GuardarAjuste(Action cambio)
     {

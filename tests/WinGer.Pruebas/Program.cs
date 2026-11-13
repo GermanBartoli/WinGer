@@ -16,6 +16,7 @@ async Task Rechazar(Func<Task> accion, string nombre)
     { Verificar(true, nombre); return; }
     throw new Exception("No se rechazó: " + nombre);
 }
+await PruebasCache.Ejecutar(Verificar);
 const string hash = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
 Verificar(Hashes.Validar("  " + hash.ToUpperInvariant() + "  ") == hash, "normalización del hash");
 foreach (var invalido in new[] { "", "--apikey", "../archivo", new string('g', 64), new string('a', 63), hash + "\ncomando" })
@@ -44,13 +45,74 @@ var informe = ServicioVirusTotal.Interpretar(json, hash);
 Verificar(informe.Maliciosos == 2 && informe.Sospechosos == 1 && informe.Fecha.HasValue, "interpretación de detecciones y fecha");
 foreach (var estado in new[] { HttpStatusCode.OK, HttpStatusCode.NotFound, HttpStatusCode.Unauthorized, HttpStatusCode.Forbidden, HttpStatusCode.TooManyRequests, HttpStatusCode.InternalServerError })
 {
-    using var cliente = new HttpClient(new Simulador(estado, json));
+    var simulador = new Simulador(estado, json);
+    using var cliente = new HttpClient(simulador);
     var servicio = new ServicioVirusTotal(cliente);
-    if (estado == HttpStatusCode.OK) Verificar((await servicio.ConsultarAsync(hash, "clave-de-prueba", default))?.Maliciosos == 2, "respuesta HTTP correcta");
+    if (estado == HttpStatusCode.OK)
+    {
+        Verificar((await servicio.ConsultarAsync(hash, "clave-de-prueba", default))?.Maliciosos == 2, "respuesta HTTP correcta");
+        await servicio.ConsultarAsync(hash, "clave-de-prueba", default);
+        Verificar(simulador.Llamadas == 1, "reutilización del informe sin consumir otra petición de API");
+    }
     else if (estado == HttpStatusCode.NotFound) Verificar(await servicio.ConsultarAsync(hash, "clave-de-prueba", default) is null, "ausencia de informe no se interpreta como seguro");
     else await Rechazar(async () => { await servicio.ConsultarAsync(hash, "clave-de-prueba", default); }, "error HTTP " + (int)estado);
 }
 var ejecutor = new EjecutorProcesos();
+if (args.Contains("--integracion-firma"))
+{
+    using var clienteFirma = new HttpClient();
+    var servicioFirma = new ServicioPaquetes(ejecutor, new ServicioVirusTotal(clienteFirma));
+    var rutaFirma = Path.Combine(Path.GetTempPath(), "WinGer-firma-" + Guid.NewGuid() + ".ps1");
+    try
+    {
+        await File.WriteAllTextAsync(rutaFirma, "# Archivo de prueba sin firma; no se ejecuta.");
+        Verificar(await servicioFirma.FirmaAsync(rutaFirma, default) == "NotSigned", "firma real: archivo sin firmar identificado correctamente");
+    }
+    finally { File.Delete(rutaFirma); }
+}
+var tabla = "Nombre                  Id                  Versión       Disponible    Origen\n" +
+    "----------------------------------------------------------------------------\n" +
+    "Editor de prueba        Editor.Prueba       1.0           2.0           winget\n" +
+    "Versión desconocida     Otro.Editor         Unknown       3.0           winget\n" +
+    "Paquete truncado        Otro.Paqu…          1.0           2.0           winget\n";
+var paquetes = TablaWinGet.Leer(tabla);
+Verificar(TablaWinGet.LeerHashPublicado("  Instalador SHA256: " + hash) == hash, "hash previo a la descarga desde WinGet en español");
+Verificar(TablaWinGet.LeerHashPublicado("  Installer SHA256: " + hash) == hash, "hash previo a la descarga desde WinGet en inglés");
+await Rechazar(() => { TablaWinGet.LeerHashPublicado("Sin hash publicado"); return Task.CompletedTask; }, "no se inventa el hash si falta en WinGet");
+Verificar(paquetes.Count == 1 && paquetes[0].Id == "Editor.Prueba" && paquetes[0].Disponible == "2.0", "tabla española, versiones desconocidas e IDs truncados");
+var tablaInstalada = "Name                    Id                  Version       Source\n" +
+    "------------------------------------------------------------------\n" +
+    "Editor de prueba        Editor.Prueba       2.0           winget\n";
+Verificar(TablaWinGet.Leer(tablaInstalada, false).Single().Instalada == "2.0", "confirmación de versión instalada en inglés");
+var manifiesto = $"PackageIdentifier: Editor.Prueba\nPackageVersion: 2.0\nInstallers:\n- Architecture: x64\n  InstallerType: msi\n  InstallerSha256: {hash}\n  Scope: machine\n";
+var datos = Manifiestos.Leer(manifiesto, "Editor.Prueba", "2.0");
+Verificar(datos.Hash == hash && datos.Tipo == "msi" && datos.SinDependencias, "manifiesto e identidad exacta del instalador");
+await Rechazar(() => { Manifiestos.Leer(manifiesto, "Otro.Editor", "2.0"); return Task.CompletedTask; }, "rechazo de manifiesto de otro paquete");
+await Rechazar(() => { Manifiestos.Leer(manifiesto, "Editor.Prueba", "3.0"); return Task.CompletedTask; }, "rechazo de manifiesto de otra versión");
+Verificar(!Manifiestos.Leer(manifiesto + "Dependencies:\n  PackageDependencies:\n  - PackageIdentifier: Otro.Editor\n", "Editor.Prueba", "2.0").SinDependencias, "dependencias exigen revisión");
+var ahora = DateTimeOffset.UtcNow;
+var limpio = new InformeVirusTotal(hash, 0, 0, 65, 0, ahora, "{}");
+var descarga = new DescargaVerificada("archivo.msi", hash, "msi", "machine", true, "Valid", limpio, ahora);
+Verificar(PoliticaInstalacion.PuedeInstalar(descarga, ahora), "solo instalador íntegro con firma e informe habilita actualización");
+Verificar(!PoliticaInstalacion.PuedeInstalar(descarga with { Firma = "NotSigned" }, ahora), "sin firma no se habilita actualización");
+Verificar(!PoliticaInstalacion.PuedeInstalar(descarga with { SinDependencias = false }, ahora), "dependencias no comprobadas bloquean actualización");
+Verificar(!PoliticaInstalacion.PuedeInstalar(descarga with { Informe = null }, ahora), "sin informe no se habilita actualización");
+Verificar(!PoliticaInstalacion.PuedeInstalar(descarga with { Tipo = "zip" }, ahora), "archivo comprimido requiere otra implementación");
+Verificar(!PoliticaInstalacion.PuedeInstalar(descarga with { Informe = limpio with { Maliciosos = 1 } }, ahora), "detección bloquea actualización");
+Verificar(!PoliticaInstalacion.InformeAprobado(limpio with { Sospechosos = 1 }, ahora), "sospecha bloquea actualización");
+Verificar(!PoliticaInstalacion.InformeAprobado(limpio with { Fecha = ahora.AddDays(-31) }, ahora), "informe antiguo exige revisión");
+Verificar(!PoliticaInstalacion.InformeAprobado(limpio with { SinDeteccion = 0 }, ahora), "sin motores analizados no hay aprobación");
+Verificar(!PoliticaInstalacion.PuedeInstalar(descarga with { Consultado = ahora.AddHours(-2) }, ahora), "aprobación vencida debe renovarse");
+var jsonCli = "[{\"id\":\"" + hash + "\",\"attributes\":{\"last_analysis_stats\":{\"malicious\":0,\"suspicious\":0,\"undetected\":65,\"harmless\":0},\"last_analysis_date\":" + ahora.ToUnixTimeSeconds() + "}}]";
+Verificar(ServicioVirusTotal.InterpretarCli(jsonCli, hash).SinDeteccion == 65, "informe de vt-cli vinculado al hash");
+await Rechazar(() => { ServicioVirusTotal.InterpretarCli(jsonCli, new string('a', 64)); return Task.CompletedTask; }, "vt-cli con hash distinto se rechaza");
+if (args.Contains("--integracion-winget"))
+{
+    var real = await ejecutor.EjecutarAsync("winget.exe", ["list", "--upgrade-available", "--source", "winget", "--disable-interactivity"], default);
+    var reales = TablaWinGet.Leer(real.Salida);
+    Verificar(real.Codigo == 0 && reales.Count > 0, "lectura real de actualizaciones de WinGet");
+    Console.WriteLine($"Programas interpretados: {reales.Count}. No se instaló ninguno.");
+}
 var proceso = await ejecutor.EjecutarAsync("dotnet", ["--version"], default);
 Verificar(proceso.Codigo == 0 && !string.IsNullOrWhiteSpace(proceso.Salida), "ejecución real y captura de salida");
 await Rechazar(async () => { await ejecutor.EjecutarAsync("winger-programa-inexistente", [], default); }, "herramienta ausente");
@@ -58,8 +120,10 @@ Console.WriteLine($"\n{cantidad} verificaciones correctas. No se enviaron archiv
 
 sealed class Simulador(HttpStatusCode estado, string json) : HttpMessageHandler
 {
+    public int Llamadas { get; private set; }
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage solicitud, CancellationToken cancelacion)
     {
+        Llamadas++;
         if (solicitud.Method != HttpMethod.Get || solicitud.RequestUri?.Host != "www.virustotal.com" || !solicitud.Headers.Contains("x-apikey"))
             throw new Exception("Solicitud de VirusTotal incorrecta");
         return Task.FromResult(new HttpResponseMessage(estado) { Content = new StringContent(json) });

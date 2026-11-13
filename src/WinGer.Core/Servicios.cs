@@ -11,7 +11,7 @@ public sealed record ResultadoProceso(int Codigo, string Salida);
 public sealed class EjecutorProcesos
 {
     public async Task<ResultadoProceso> EjecutarAsync(string programa, IEnumerable<string> argumentos,
-        CancellationToken cancelacion, string? clave = null)
+        CancellationToken cancelacion, string? clave = null, IReadOnlyDictionary<string, string>? entorno = null)
     {
         var inicio = new ProcessStartInfo(programa)
         {
@@ -22,6 +22,8 @@ public sealed class EjecutorProcesos
         };
         foreach (var argumento in argumentos) inicio.ArgumentList.Add(argumento);
         if (clave is not null) inicio.Environment["VTCLI_APIKEY"] = clave;
+        if (entorno is not null) foreach (var par in entorno) inicio.Environment[par.Key] = par.Value;
+        cancelacion.ThrowIfCancellationRequested();
         using var proceso = new Process { StartInfo = inicio };
         try { proceso.Start(); }
         catch (System.ComponentModel.Win32Exception)
@@ -67,9 +69,45 @@ public sealed record InformeVirusTotal(string Hash, int Maliciosos, int Sospecho
     public string Resumen => $"Maliciosos: {Maliciosos} · Sospechosos: {Sospechosos} · Sin detección: {SinDeteccion} · Inofensivos: {Inofensivos}\nÚltimo análisis: {Fecha?.ToLocalTime().ToString("g") ?? "sin fecha"}.\nCero detecciones no garantiza que el archivo sea seguro.";
 }
 
-public sealed class ServicioVirusTotal(HttpClient cliente)
+public sealed class ServicioVirusTotal(HttpClient cliente, AlmacenLocal? almacen = null)
 {
+    private readonly SemaphoreSlim turno = new(1, 1);
+    private readonly Dictionary<string, InformeGuardado> informes = almacen?.LeerInformes() ?? [];
+    public void BorrarCache() => informes.Clear();
+    private DateTimeOffset proximaConsulta;
+    public static InformeVirusTotal InterpretarCli(string json, string hash)
+    {
+        using var documento = JsonDocument.Parse(json);
+        var objeto = documento.RootElement;
+        if (objeto.ValueKind == JsonValueKind.Array)
+        {
+            if (objeto.GetArrayLength() != 1) throw new InvalidOperationException("vt-cli devolvió más de un resultado.");
+            objeto = objeto[0];
+        }
+        if (objeto.TryGetProperty("data", out var datos)) objeto = datos;
+        if (!objeto.TryGetProperty("id", out var id) || !string.Equals(id.GetString(), hash, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("El informe de vt-cli no corresponde al archivo descargado.");
+        return Interpretar("{\"data\":" + objeto.GetRawText() + "}", hash);
+    }
     public async Task<InformeVirusTotal?> ConsultarAsync(string hash, string clave, CancellationToken cancelacion)
+    {
+        hash = Hashes.Validar(hash);
+        if (string.IsNullOrWhiteSpace(clave)) throw new InvalidOperationException("Guardá tu clave de VirusTotal en Configuración.");
+        await turno.WaitAsync(cancelacion);
+        try
+        {
+            if (informes.TryGetValue(hash, out var guardado) && guardado.Fecha >= DateTimeOffset.UtcNow.AddHours(-1)) return guardado.Informe;
+            var espera = proximaConsulta - DateTimeOffset.UtcNow;
+            if (espera > TimeSpan.Zero) await Task.Delay(espera, cancelacion);
+            proximaConsulta = DateTimeOffset.UtcNow.AddSeconds(16);
+            var informe = await ConsultarRemotoAsync(hash, clave, cancelacion);
+            informes[hash] = new(DateTimeOffset.UtcNow, informe);
+            almacen?.GuardarInformes(informes.Where(p => p.Value.Fecha >= DateTimeOffset.UtcNow.AddHours(-1)).ToDictionary());
+            return informe;
+        }
+        finally { turno.Release(); }
+    }
+    private async Task<InformeVirusTotal?> ConsultarRemotoAsync(string hash, string clave, CancellationToken cancelacion)
     {
         hash = Hashes.Validar(hash);
         if (string.IsNullOrWhiteSpace(clave)) throw new InvalidOperationException("Guardá tu clave de VirusTotal en Configuración.");
@@ -99,13 +137,15 @@ public sealed class ServicioVirusTotal(HttpClient cliente)
 
 public sealed class Configuracion
 {
+    public bool RegistroVtaiIntentado { get; set; }
     public bool MinimizarAlCerrar { get; set; }
+    public string ConsultaAutomatica { get; set; } = "VTAI";
     public string Tema { get; set; } = "Predeterminado";
 }
 
 public sealed record EntradaHistorial(DateTimeOffset Fecha, string Operacion, string Resultado);
 
-public sealed class AlmacenLocal
+public sealed partial class AlmacenLocal
 {
     private readonly string carpeta;
     private static readonly JsonSerializerOptions Opciones = new() { WriteIndented = true };
