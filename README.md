@@ -6,7 +6,7 @@
 <p align="center"><strong>Actualizá Windows con información, a tu ritmo.</strong><br />WinGet · Microsoft Store · VirusTotal</p>
 
 <p align="center">
-  <a href="https://github.com/GermanBartoli/WinGer/releases"><img src="https://img.shields.io/badge/versión-0.3.9-43dfbf?style=flat-square" alt="Vista previa 0.3.9" /></a>
+  <a href="https://github.com/GermanBartoli/WinGer/releases"><img src="https://img.shields.io/badge/versión-0.3.10-43dfbf?style=flat-square" alt="Vista previa 0.3.10" /></a>
   <img src="https://img.shields.io/badge/Windows-x64-0078D4?style=flat-square" alt="Windows x64" />
   <img src="https://img.shields.io/badge/.NET-10-512BD4?style=flat-square" alt=".NET 10" />
   <img src="https://img.shields.io/badge/interfaz-WinUI_3-102a43?style=flat-square" alt="WinUI 3" />
@@ -116,7 +116,9 @@ Los errores se muestran automáticamente con su motivo. Siempre podés volver a 
 <details>
 <summary><strong>Formatos y límites de instalación</strong></summary>
 
-- MSI/WiX y EXE/Inno/Nullsoft/Burn: sin dependencias declaradas ni desinstalación previa requerida.
+- MSI/WiX y EXE/Inno/Nullsoft/Burn: sin dependencias adicionales declaradas.
+- Si el manifiesto requiere desinstalar la versión anterior, WinGer pide **Desinstalar y actualizar** después del análisis. Revalida el archivo y VirusTotal antes de quitar nada, identifica la versión instalada y usa [WinGet uninstall](https://learn.microsoft.com/en-us/windows/package-manager/winget/uninstall) con ID y versión exactos. Después ejecuta el instalador local comprobado.
+- Si la desinstalación falla o pide reiniciar, no se ejecuta el nuevo instalador. Si la instalación posterior falla, la aplicación puede quedar desinstalada; se conserva la ruta del archivo para recuperarla. Cancelar la cola no interrumpe el reemplazo iniciado.
 - MSIX/AppX: instalación mediante [Add-AppxPackage](https://learn.microsoft.com/en-us/powershell/module/appx/add-appxpackage?view=windows-11). Windows valida su firma y las dependencias presentes; si faltan, la operación se rechaza.
 - El informe debe tener motores analizados, cero detecciones, cero sospechas y una fecha dentro de los últimos 30 días. La comprobación local vence después de una hora.
 - Se mantiene el archivo abierto con bloqueo de escritura durante la instalación; no se vuelve a descargar mediante WinGet.
@@ -145,6 +147,12 @@ La sección **Microsoft Store** consulta actualizaciones e inventario mediante l
 Consultar un hash no sube el archivo. Las subidas desde el centro VirusTotal requieren confirmación porque pueden compartir el contenido con terceros. La clave de vt-cli se entrega en el entorno de su proceso, no en los argumentos ni en el historial.
 
 **Borrar caché** elimina búsquedas e informes reutilizables; conserva ajustes, credenciales, historial e instaladores. Los archivos descargados pueden borrarse cuando no haya operaciones en curso y deberán comprobarse de nuevo antes de instalar.
+
+## Novedades de 0.3.10
+
+- Actualización de Java y otros manifiestos con `uninstallPrevious`, con confirmación específica antes de quitar la versión anterior.
+- Avisos separados para dependencias adicionales y desinstalación previa.
+- Se mantienen las comprobaciones de hash, firma e informe y el bloqueo de dependencias sin gestionar.
 
 ## Novedades de 0.3.9
 

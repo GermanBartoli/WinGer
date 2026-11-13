@@ -82,7 +82,16 @@ public sealed partial class MainWindow
                         }
                     }
                     token.ThrowIfCancellationRequested();
-                    await Gestor.ActualizarAsync(paquete, clave, token, aceptarFirma);
+                    var aceptarDesinstalacion = false;
+                    if (paquete.Descarga?.DesinstalarAnterior == true)
+                    {
+                        var aviso = new ContentDialog { XamlRoot = Raiz.XamlRoot, Title = "Reemplazar versión anterior",
+                            Content = $"{paquete.Nombre} requiere desinstalar {paquete.Instalada} antes de instalar {paquete.Disponible}. El instalador nuevo ya fue comprobado y se revalidará antes de quitar la versión anterior.\n\nSi la instalación falla, la aplicación puede quedar desinstalada; el archivo nuevo se conserva para reintentar. Cancelar la cola no interrumpe este reemplazo una vez iniciado.",
+                            PrimaryButtonText = "Desinstalar y actualizar", CloseButtonText = "Cancelar", DefaultButton = ContentDialogButton.Close };
+                        aceptarDesinstalacion = await aviso.ShowAsync() == ContentDialogResult.Primary;
+                        if (!aceptarDesinstalacion) { fallos++; continue; }
+                    }
+                    await Gestor.ActualizarAsync(paquete, clave, token, aceptarFirma, aceptarDesinstalacion);
                     if (paquete.ActualizacionConfirmada)
                     {
                         almacen.RegistrarActualizacion(paquete);

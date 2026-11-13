@@ -123,6 +123,17 @@ Verificar(!PoliticaInstalacion.PuedeInstalar(descarga with { Firma = "NotSigned"
 Verificar(PoliticaInstalacion.PuedeInstalar(descarga with { Tipo = "msix", Ruta = "terminal.msix", Firma = "UnknownError" }, ahora, true), "MSIX admite advertencia y conserva validación de Windows");
 Verificar(!PoliticaInstalacion.PuedeInstalar(descarga with { Tipo = "msix", Ruta = "terminal.exe" }, ahora, true), "MSIX rechaza extensión incorrecta");
 Verificar(!PoliticaInstalacion.PuedeInstalar(descarga with { SinDependencias = false }, ahora, true), "aceptación no omite dependencias no gestionadas");
+// La desinstalación previa se distingue de dependencias y exige una aceptación separada.
+var reemplazo = Manifiestos.Leer(manifiesto + "UpgradeBehavior: uninstallPrevious\n", "Editor.Prueba", "2.0");
+Verificar(reemplazo.DesinstalarAnterior && reemplazo.SinDependencias, "desinstalación previa sin dependencias habilita preparación");
+Verificar(Manifiestos.Leer(manifiesto.Replace("  Scope: machine", "  UpgradeBehavior: uninstallPrevious\n  Scope: machine"), "Editor.Prueba", "2.0").DesinstalarAnterior, "desinstalación declarada en instalador");
+Verificar(!Manifiestos.Leer(manifiesto.Replace("  Scope: machine", "  UpgradeBehavior: install\n  Scope: machine") + "UpgradeBehavior: uninstallPrevious\n", "Editor.Prueba", "2.0").DesinstalarAnterior, "comportamiento del instalador prevalece sobre raíz");
+Verificar(!datos.DesinstalarAnterior, "actualización habitual no desinstala");
+Verificar(!Manifiestos.Leer(manifiesto + "UpgradeBehavior: uninstallPrevious\nDependencies:\n  PackageDependencies:\n  - PackageIdentifier: Otro.Editor\n", "Editor.Prueba", "2.0").SinDependencias, "reemplazo no omite dependencias reales");
+Verificar(PoliticaInstalacion.PuedeInstalar(descarga with { DesinstalarAnterior = true }, ahora), "reemplazo admite instalador verificado");
+var paqueteReemplazo = new Paquete { Nombre = "Prueba", Id = "Editor.Prueba", Instalada = "1", Disponible = "2", Descarga = descarga with { DesinstalarAnterior = true } };
+var gestorReemplazo = new ServicioPaquetes(new EjecutorProcesos(), new ServicioVirusTotal(new HttpClient()));
+await Rechazar(() => gestorReemplazo.ActualizarAsync(paqueteReemplazo, "ficticia", default), "sin confirmación no toca archivos ni desinstala");
 var jsonCli = "[{\"id\":\"" + hash + "\",\"attributes\":{\"last_analysis_stats\":{\"malicious\":0,\"suspicious\":0,\"undetected\":65,\"harmless\":0},\"last_analysis_date\":" + ahora.ToUnixTimeSeconds() + "}}]";
 Verificar(ServicioVirusTotal.InterpretarCli(jsonCli, hash).SinDeteccion == 65, "informe de vt-cli vinculado al hash");
 await Rechazar(() => { ServicioVirusTotal.InterpretarCli(jsonCli, new string('a', 64)); return Task.CompletedTask; }, "vt-cli con hash distinto se rechaza");

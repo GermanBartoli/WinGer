@@ -22,7 +22,7 @@ Para incluir además la comprobación real de firma de un archivo temporal sin e
 | VTAI | Registro simulado, token, respuestas, cuotas, Retry-After y cancelación. | No registra identidades reales. |
 | Tres resultados | Independencia, cambios de versión/hash, colores, avisos, persistencia y notificaciones a la interfaz. | No mide distribución visual. |
 | Web | Interpretación de evidencia, origen, hash, motores, respuestas incompletas y ausencia explícita «Item not found» con origen y hash correctos. | Comprueba pausa, reanudación, preferencia persistente y colores. No abre VirusTotal ni verifica inicio de sesión, cookies reales o votos. |
-| Actualización | Formatos, firmas admitidas, vigencia, integridad del archivo y rechazo antes de ejecutar. | No instala software ni prueba UAC/asistentes. |
+| Actualización | Formatos, firmas admitidas, vigencia, integridad, herencia de desinstalación previa y rechazo sin confirmación antes de tocar archivos o procesos. | No instala software ni prueba UAC/asistentes. |
 | Datos locales | Ajustes, historial, archivos dañados y borrado de cache conservando el resto. | Usa directorios temporales, no tus datos. |
 | Procesos | stdout/stderr, código de salida, ocultación de clave ficticia y cancelación de un hijo. | Solo ejecuta el propio runner y herramientas de desarrollo. |
 | Interfaz | Persistencia de posición/tamaño/maximizado, minimización y límites de monitores; modelo de estado y eventos; compilación del XAML y presencia de recursos. | No prueba clics, foco, bandeja ni geometría. |

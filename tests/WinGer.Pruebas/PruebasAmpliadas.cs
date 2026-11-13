@@ -216,7 +216,7 @@ static class PruebasAmpliadas
                 verificar(!PoliticaInstalacion.InformeAprobado(variante, ahora), "informe insuficiente o fuera de fecha bloqueado");
             var manifiesto = $"PackageIdentifier: Editor.Prueba\nPackageVersion: 2\nInstallerType: msix\nInstallers:\n- Architecture: x64\n  InstallerSha256: {hash}\n";
             verificar(Manifiestos.Leer(manifiesto, "Editor.Prueba", "2").Tipo == "msix", "manifiesto hereda formato de la raíz");
-            verificar(!Manifiestos.Leer(manifiesto + "UpgradeBehavior: uninstallPrevious\n", "Editor.Prueba", "2").SinDependencias, "desinstalación previa no se omite en MSIX");
+            verificar(Manifiestos.Leer(manifiesto + "UpgradeBehavior: uninstallPrevious\n", "Editor.Prueba", "2").DesinstalarAnterior, "desinstalación previa no se omite en MSIX");
             await Rechazar(() => { Manifiestos.Leer(manifiesto + $"- Architecture: x86\n  InstallerSha256: {hash}\n", "Editor.Prueba", "2"); return Task.CompletedTask; }, "manifiesto con varios instaladores rechazado");
             await Rechazar(() => { Manifiestos.Leer(manifiesto.Replace(hash, "invalido"), "Editor.Prueba", "2"); return Task.CompletedTask; }, "hash de manifiesto inválido rechazado");
             foreach (var categorias in new[] { new[] { "failure", "timeout" }, Array.Empty<string>(), new[] { "otra" } })
