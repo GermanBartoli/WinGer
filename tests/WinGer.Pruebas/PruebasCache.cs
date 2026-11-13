@@ -64,6 +64,29 @@ static class PruebasCache
                 catch (InvalidOperationException) { rechazado = true; }
                 if (codigo != HttpStatusCode.NotFound) verificar(rechazado && almacen.LeerInformesVtai().Count == 0, "VTAI rechaza y no almacena HTTP " + (int)codigo);
             }
+            var finalizado = new Paquete { Id = "Prueba.App", Nombre = "Prueba", Instalada = "1", Disponible = "2", Estado = "Guardado · Actualizado · 2 · con advertencia de firma" };
+            var pendiente = new Paquete { Id = "Pendiente.App", Nombre = "Pendiente", Instalada = "1", Disponible = "2", Seleccionado = true, Estado = "Instalador finalizado · versión pendiente de confirmar" };
+            almacen.RegistrarActualizacion(pendiente);
+            verificar(almacen.LeerActualizaciones().Count == 0, "una instalación sin versión confirmada no entra en mis actualizaciones");
+            almacen.RegistrarActualizacion(finalizado, fecha);
+            almacen.RegistrarActualizacion(finalizado, fecha);
+            var actualizaciones = new AlmacenLocal(carpeta).LeerActualizaciones();
+            verificar(actualizaciones.Count == 1 && actualizaciones[0].Fecha == fecha && actualizaciones[0].Anterior == "1" && actualizaciones[0].Version == "2", "historial persistente con versiones, fecha y migración sin duplicados");
+            var lista = new List<Paquete> { finalizado, pendiente };
+            lista.RemoveAll(p => p.ActualizacionConfirmada);
+            verificar(lista.Count == 1 && lista[0].Seleccionado, "retirar confirmadas conserva pendientes seleccionadas");
+            almacen.BorrarCache();
+            verificar(almacen.LeerActualizaciones().Count == 1, "borrar caché conserva mis actualizaciones");
+            var antiguo = new ResultadoConsulta(hash, "API", informeFuente with { Fecha = fecha.AddDays(-31) }, fecha);
+            verificar(antiguo.Resumen.Contains("Análisis antiguo · más de 30 días") && antiguo.Color == "#E8B44D", "el amarillo explica que el análisis supera 30 días");
+            var sinInforme = new Paquete { Id = "Sin.Informe", Nombre = "Sin informe", Instalada = "1", Disponible = "2", HashPublicado = hash };
+            verificar(!sinInforme.PuedePrepararSubida, "sin consultar no se ofrece subir por ausencia supuesta");
+            sinInforme.RegistrarErrorConsulta("API", "Cuota");
+            verificar(!sinInforme.PuedePrepararSubida, "un error de API no significa informe ausente");
+            sinInforme.RegistrarConsulta("Web", hash, null);
+            verificar(sinInforme.PuedePrepararSubida, "ausencia explícita permite preparar subida");
+            sinInforme.RegistrarConsulta("VTAI", hash, informeFuente);
+            verificar(!sinInforme.PuedePrepararSubida, "un informe existente evita ofrecer subida por otro resultado antiguo");
             var web = JsonSerializer.Serialize(new { url = $"https://www.virustotal.com/gui/file/{hash}/detection", hash, categorias = new[] { "undetected", "malicious", "type-unsupported" }, fecha = "2026-10-27 17:38:37 UTC" });
             verificar(LecturaInformeWeb.Interpretar(web, hash) is { Maliciosos: 1, SinDeteccion: 1, Fecha: not null }, "lectura web conserva detecciones y fecha");
             verificar(LecturaInformeWeb.Interpretar(web, new string('a', 64)) is null, "web rechaza otro hash");

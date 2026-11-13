@@ -6,7 +6,7 @@
 <p align="center"><strong>Actualizá Windows con información, a tu ritmo.</strong><br />WinGet · Microsoft Store · VirusTotal</p>
 
 <p align="center">
-  <a href="https://github.com/GermanBartoli/WinGer/releases"><img src="https://img.shields.io/badge/versión-0.3.5-43dfbf?style=flat-square" alt="Vista previa 0.3.5" /></a>
+  <a href="https://github.com/GermanBartoli/WinGer/releases"><img src="https://img.shields.io/badge/versión-0.3.6-43dfbf?style=flat-square" alt="Vista previa 0.3.6" /></a>
   <img src="https://img.shields.io/badge/Windows-x64-0078D4?style=flat-square" alt="Windows x64" />
   <img src="https://img.shields.io/badge/.NET-10-512BD4?style=flat-square" alt=".NET 10" />
   <img src="https://img.shields.io/badge/interfaz-WinUI_3-102a43?style=flat-square" alt="WinUI 3" />
@@ -47,6 +47,14 @@
 La consulta API y la actualización verificada requieren tu clave clásica de VirusTotal en **Configuración**. VTAI usa su propio token, que WinGer registra una sola vez y protege en Windows; también admite importar uno existente. El repositorio no incluye credenciales.
 
 Para actualizar WinGer, cerralo desde **bandeja → Salir** y reemplazá los archivos de su carpeta. La configuración vive fuera de esa carpeta. El ejecutable de esta vista previa no tiene firma de editor; cada release incluye el SHA-256 del ZIP.
+
+## Historial y aplicaciones pendientes
+
+Las actualizaciones confirmadas por WinGet salen del listado sin desmarcar las demás. La barra inferior muestra cuántas aplicaciones quedan pendientes. Las tarjetas usan los iconos locales de Windows, con un icono genérico cuando no hay uno disponible.
+
+**Historial de mis actualizaciones** muestra fecha y versiones; **Registro de operaciones** conserva la vista anterior. Los informes de más de 30 días indican **Análisis antiguo · más de 30 días**.
+
+Si una consulta confirma **Sin informe**, **Subir instalador a VirusTotal…** descarga el archivo y comprueba su SHA-256 y firma. Abre la página de subida en el navegador integrado; **Seleccionar este instalador en VirusTotal** pide confirmar que se compartirá con terceros antes de seleccionar el archivo. Completá cualquier confirmación del sitio y, al terminar, usá **Leer web** para guardar el resultado. No instala ni declara seguro el archivo; la carga web depende del selector de VirusTotal y no elude sus límites.
 
 ## Qué conviene consultar
 
@@ -136,7 +144,7 @@ Consultar un hash no sube el archivo. Las subidas desde el centro VirusTotal req
 
 **Borrar caché** elimina búsquedas e informes reutilizables; conserva ajustes, credenciales, historial e instaladores. Los archivos descargados pueden borrarse cuando no haya operaciones en curso y deberán comprobarse de nuevo antes de instalar.
 
-## Novedades de 0.3.5
+## Novedades de 0.3.6
 
 - El navegador de VirusTotal recuerda **posición, tamaño y estado maximizado** entre aplicaciones y al reiniciar WinGer, tanto en lecturas como en Mi cuenta.
 - Si se desconecta un monitor o cambia el espacio disponible, la ventana se ajusta a una pantalla visible. Minimizar no reemplaza la posición guardada.

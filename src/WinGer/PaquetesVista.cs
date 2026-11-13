@@ -9,6 +9,7 @@ public sealed partial class MainWindow
     private IEnumerable<Paquete> Visibles() => paquetes.Where(p => p.Nombre.Contains(filtroPaquetes, StringComparison.OrdinalIgnoreCase) || p.Id.Contains(filtroPaquetes, StringComparison.OrdinalIgnoreCase));
     private void ActualizarContador()
     {
+        Modelo.Pendientes = $"{paquetes.Count} apps pendientes";
         if (contadorPaquetes is not null) contadorPaquetes.Text = $"{paquetes.Count} disponibles · {paquetes.Count(p => p.Seleccionado)} seleccionados · Última búsqueda: {ultimaBusqueda?.ToLocalTime().ToString("g") ?? "sin realizar"}";
     }
     private void FiltrarPaquetes() { if (listaPaquetes is not null) listaPaquetes.ItemsSource = Visibles().ToArray(); ActualizarContador(); }
@@ -82,6 +83,14 @@ public sealed partial class MainWindow
                     }
                     token.ThrowIfCancellationRequested();
                     await Gestor.ActualizarAsync(paquete, clave, token, aceptarFirma);
+                    if (paquete.ActualizacionConfirmada)
+                    {
+                        almacen.RegistrarActualizacion(paquete);
+                        paquetes.Remove(paquete);
+                        FiltrarPaquetes();
+                        GuardarCache();
+                    }
+                    else fallos++;
                 }
                 catch (OperationCanceledException) { throw; }
                 catch (Exception error)

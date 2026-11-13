@@ -222,10 +222,19 @@ public sealed partial class MainWindow : Window
     }
     private void MostrarHistorial()
     {
-        Encabezado("Historial", "Últimas 200 operaciones. No se guardan claves ni el contenido de los archivos.");
-        var entradas = almacen.LeerHistorial();
-        if (entradas.Count == 0) Contenido.Children.Add(Texto("Todavía no hay operaciones registradas."));
-        foreach (var entrada in entradas) Contenido.Children.Add(Texto($"{entrada.Fecha.LocalDateTime:g}  ·  {entrada.Operacion}  ·  {entrada.Resultado}"));
+        Encabezado("Historial", "Tus actualizaciones confirmadas y el registro de operaciones de WinGer.");
+        var pestañas = new TabView { IsAddTabButtonVisible = false, CanDragTabs = false, CanReorderTabs = false };
+        var actualizaciones = new StackPanel { Spacing = 14, Margin = new Thickness(0, 16, 0, 0) };
+        var realizadas = almacen.LeerActualizaciones();
+        if (realizadas.Count == 0) actualizaciones.Children.Add(Texto("Todavía no hay actualizaciones confirmadas registradas."));
+        foreach (var entrada in realizadas.OrderByDescending(e => e.Fecha))
+            actualizaciones.Children.Add(Texto($"{entrada.Nombre}  ·  {entrada.Anterior} → {entrada.Version}\n{entrada.Fecha.LocalDateTime:g}  ·  {entrada.Resultado}"));
+        var operaciones = new StackPanel { Spacing = 12, Margin = new Thickness(0, 16, 0, 0) };
+        operaciones.Children.Add(Texto("Últimas 200 operaciones. No se guardan claves ni el contenido de los archivos."));
+        foreach (var entrada in almacen.LeerHistorial()) operaciones.Children.Add(Texto($"{entrada.Fecha.LocalDateTime:g}  ·  {entrada.Operacion}  ·  {entrada.Resultado}"));
+        pestañas.TabItems.Add(new TabViewItem { Header = "Historial de mis actualizaciones", IsClosable = false, Content = actualizaciones });
+        pestañas.TabItems.Add(new TabViewItem { Header = "Registro de operaciones", IsClosable = false, Content = operaciones });
+        Contenido.Children.Add(pestañas);
     }
     private string LeerClave()
     {

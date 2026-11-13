@@ -180,25 +180,33 @@ public sealed class ServicioPaquetes(EjecutorProcesos procesos, ServicioVirusTot
         if (resultado.Codigo != 0 && resultado.Codigo != unchecked((int)0x8A15002B)) throw new InvalidOperationException(resultado.Salida);
         return TablaWinGet.Leer(resultado.Salida);
     }
+    public async Task<(string Ruta, string Hash, DatosManifiesto Datos)> DescargarVerificadoAsync(Paquete paquete, CancellationToken token)
+    {
+        var carpeta = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WinGer", "Descargas", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(carpeta);
+        var resultado = await procesos.EjecutarAsync("winget.exe", ["download", "--id", paquete.Id, "--exact", "--version", paquete.Disponible,
+            "--source", "winget", "--download-directory", carpeta, "--skip-dependencies", "--accept-package-agreements", "--disable-interactivity"], token);
+        if (resultado.Codigo != 0) throw new InvalidOperationException(resultado.Salida);
+        var manifiestos = Directory.GetFiles(carpeta, "*.yaml");
+        if (manifiestos.Length != 1) throw new InvalidOperationException("La descarga no produjo un manifiesto único.");
+        var datos = Manifiestos.Leer(await File.ReadAllTextAsync(manifiestos[0], token), paquete.Id, paquete.Disponible);
+        var archivos = Directory.GetFiles(carpeta).Where(p => !p.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase)).ToArray();
+        if (archivos.Length != 1) throw new InvalidOperationException("No se puede verificar un único archivo descargado.");
+        var ruta = archivos[0];
+        var hash = await Hashes.CalcularAsync(ruta, token);
+        if (!hash.Equals(datos.Hash, StringComparison.OrdinalIgnoreCase))
+        { paquete.Nivel = "rojo"; throw new InvalidOperationException("El hash no coincide con WinGet. Instalación bloqueada."); }
+        if (paquete.HashPublicado is not null && !string.Equals(paquete.HashPublicado, hash, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("El archivo descargado no corresponde al hash consultado.");
+        paquete.HashPublicado = hash;
+        return (ruta, hash, datos);
+    }
     public async Task AnalizarAsync(Paquete paquete, string clave, CancellationToken token)
     {
         paquete.Descarga = null; paquete.Nivel = "gris"; paquete.Estado = "Descargando…";
         try
         {
-            var carpeta = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WinGer", "Descargas", Guid.NewGuid().ToString("N"));
-            Directory.CreateDirectory(carpeta);
-            var resultado = await procesos.EjecutarAsync("winget.exe", ["download", "--id", paquete.Id, "--exact", "--version", paquete.Disponible,
-                "--source", "winget", "--download-directory", carpeta, "--skip-dependencies", "--accept-package-agreements", "--disable-interactivity"], token);
-            if (resultado.Codigo != 0) throw new InvalidOperationException(resultado.Salida);
-            var manifiestos = Directory.GetFiles(carpeta, "*.yaml");
-            if (manifiestos.Length != 1) throw new InvalidOperationException("La descarga no produjo un manifiesto único.");
-            var datos = Manifiestos.Leer(await File.ReadAllTextAsync(manifiestos[0], token), paquete.Id, paquete.Disponible);
-            var archivos = Directory.GetFiles(carpeta).Where(p => !p.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase)).ToArray();
-            if (archivos.Length != 1) throw new InvalidOperationException("No se puede verificar un único archivo descargado.");
-            var ruta = archivos[0];
-            var hash = await Hashes.CalcularAsync(ruta, token);
-            if (!hash.Equals(datos.Hash, StringComparison.OrdinalIgnoreCase))
-            { paquete.Nivel = "rojo"; throw new InvalidOperationException("El hash no coincide con WinGet. Instalación bloqueada."); }
+            var (ruta, hash, datos) = await DescargarVerificadoAsync(paquete, token);
             paquete.HashPublicado = hash;
             paquete.Estado = "Verificando firma y VirusTotal…";
             var firma = await FirmaAsync(ruta, token);

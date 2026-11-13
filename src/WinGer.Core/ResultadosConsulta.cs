@@ -6,7 +6,15 @@ public sealed record ResultadoConsulta(string Hash, string Metodo, InformeVirusT
     [System.Text.Json.Serialization.JsonIgnore]
     public string Resumen => (Informe is null ? Error is null ? "Sin informe" : "N/a" : $"{Informe.Maliciosos} detecciones · {Informe.Sospechosos} sospechas") +
         (Metodo == "Web" && Informe is { Maliciosos: 0, Sospechosos: 0 } ? " · lectura informativa" : "") +
+        (MotivoRevision.Length == 0 ? "" : " · " + MotivoRevision) +
         $" · {Consultado.ToLocalTime():dd/MM HH:mm}" + (Error is null ? "" : " · último intento falló");
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string MotivoRevision => Error is not null ? "La última consulta falló" :
+        Informe is null ? "" :
+        Informe.Fecha is null ? "Informe sin fecha de análisis" :
+        Informe.Fecha < DateTimeOffset.UtcNow.AddDays(-30) ? "Análisis antiguo · más de 30 días" :
+        Informe.Fecha > DateTimeOffset.UtcNow.AddMinutes(5) ? "Fecha de análisis inválida" :
+        Informe.SinDeteccion + Informe.Inofensivos <= 0 ? "Informe incompleto" : "";
     [System.Text.Json.Serialization.JsonIgnore]
     public string Color => Informe is { Maliciosos: > 0 } or { Sospechosos: > 0 } ? "#F27373" :
         Error is not null || (Metodo == "Web" ? Informe is null || Informe.SinDeteccion + Informe.Inofensivos <= 0 : !PoliticaInstalacion.InformeAprobado(Informe, DateTimeOffset.UtcNow)) ? "#E8B44D" : "#42C98B";
@@ -41,10 +49,13 @@ public sealed partial class Paquete
         "API / vt-cli\n" + (ResultadoApi?.Detalle ?? "N/a · todavía no consultado"),
         "VTAI\n" + (ResultadoVtai?.Detalle ?? "N/a · todavía no consultado"),
         "Web\n" + (ResultadoWeb?.Detalle ?? "N/a · todavía no leído") });
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool PuedePrepararSubida => new[] { ResultadoApi, ResultadoVtai, ResultadoWeb }.Any(r => r is { Informe: null, Error: null }) &&
+        !new[] { ResultadoApi, ResultadoVtai, ResultadoWeb }.Any(r => r?.Informe is not null);
     private void NotificarResultados()
     {
         foreach (var nombre in new[] { nameof(ResultadoApi), nameof(ResultadoVtai), nameof(ResultadoWeb),
-            nameof(LineaApi), nameof(LineaVtai), nameof(LineaWeb), nameof(ColorApi), nameof(ColorVtai), nameof(ColorWeb), nameof(DetallesConsultas) }) Notificar(nombre);
+            nameof(PuedePrepararSubida), nameof(LineaApi), nameof(LineaVtai), nameof(LineaWeb), nameof(ColorApi), nameof(ColorVtai), nameof(ColorWeb), nameof(DetallesConsultas) }) Notificar(nombre);
     }
     public void RegistrarConsulta(string metodo, string hash, InformeVirusTotal? informe)
     {

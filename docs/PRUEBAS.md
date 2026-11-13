@@ -36,3 +36,9 @@ El workflow `verificar.yml` ejecuta la misma suite al hacer push a main o abrir 
 ## Qué sigue requiriendo una sesión de prueba
 
 La interfaz visual, las verificaciones web, el Administrador de credenciales y los instaladores externos deben probarse aparte. Para hacerlo sin ocupar tu computadora se necesita una VM o una sesión de escritorio dedicada; la suite actual no afirma cubrir esos comportamientos.
+
+## Versión 0.3.6
+
+206 verificaciones: historial independiente persistente, migración sin duplicados, exclusión de instalaciones sin confirmar, conservación de selección y caché, explicación del análisis antiguo y habilitación de subida solo ante ausencia explícita de informe. Compilación y recursos Windows x64 correctos.
+
+Prueba de escritorio: ambas pestañas del historial, diez actualizaciones previas recuperadas, 18 pendientes, selección conservada al reiniciar, icono de WinDbg y botón de subida habilitado. La selección y transmisión reales a VirusTotal no se ejercitan para evitar compartir archivos como parte de las pruebas.

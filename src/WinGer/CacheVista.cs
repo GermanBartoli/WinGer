@@ -12,7 +12,12 @@ public sealed partial class MainWindow
         ultimaBusqueda = cache.UltimaBusqueda; filtroPaquetes = cache.Filtro;
         hashActual = cache.Hash;
         if (!string.IsNullOrEmpty(cache.SalidaVirus)) salidaVirus = cache.SalidaVirus;
-        paquetes.AddRange(cache.Paquetes);
+        foreach (var completado in cache.Paquetes.Where(p => p.ActualizacionConfirmada))
+        {
+            var registro = almacen.LeerHistorial().FirstOrDefault(e => e.Operacion == "Actualización · " + completado.Id && e.Resultado.StartsWith("Actualizado · "));
+            if (registro is not null) almacen.RegistrarActualizacion(completado, registro.Fecha);
+        }
+        paquetes.AddRange(cache.Paquetes.Where(p => !p.ActualizacionConfirmada));
         var informesApi = almacen.LeerInformes();
         var informesVtai = almacen.LeerInformesVtai();
         foreach (var p in paquetes)
@@ -80,6 +85,7 @@ public sealed partial class MainWindow
             if (Modelo.Ocupado) { Modelo.Estado = "Esperá a que termine la operación antes de borrar la caché."; return Task.CompletedTask; }
             almacen.BorrarCache(); virus.BorrarCache(); vtai?.BorrarCache();
             paquetes.Clear(); filtroPaquetes = ""; hashActual = ""; salidaVirus = ""; ultimaBusqueda = null;
+            ActualizarContador();
             Modelo.Estado = "Caché borrada.";
             return Task.CompletedTask;
         }));
