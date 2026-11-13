@@ -2,7 +2,14 @@
 
 Panel de escritorio para Windows con **C# · .NET 10 · WinUI 3**, orientado a actualizaciones con WinGet y comprobaciones con VirusTotal.
 
-## Versión 0.2.1
+## Versión 0.2.2
+
+- Sección **Microsoft Store**: consulta real de actualizaciones e inventario con la herramienta oficial `store.exe`, sin instalar nada durante la consulta.
+- Botón **Abrir Store para actualizar**: abre la página de descargas de la tienda; la instalación se completa allí y después puede consultarse de nuevo desde WinGer.
+- Estado y errores visibles; los resultados de la tienda no se presentan como análisis de VirusTotal. No se requiere otra clave ni iniciar sesión en WinGer.
+- Requiere una versión de Microsoft Store que incluya [Store CLI](https://blogs.windows.com/windowsdeveloper/2026/02/11/enhanced-developer-tools-on-the-microsoft-store/). Si no está disponible, se muestra el motivo y se conserva el acceso a la tienda.
+
+## Correcciones de la versión 0.2.1
 
 - Los bloqueos muestran automáticamente un mensaje con el motivo y sus detalles técnicos; cada tarjeta tiene un botón **Ver detalles / error**.
 - Corrección de lectura del formato real de vt-cli (`_id` y atributos planos), conservando la comprobación del SHA-256.

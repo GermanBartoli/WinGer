@@ -59,6 +59,7 @@ public sealed partial class MainWindow : Window
         if (args.IsSettingsSelected) MostrarConfiguracion();
         else switch ((args.SelectedItem as NavigationViewItem)?.Tag?.ToString())
         {
+            case "store": MostrarStore(); break;
             case "virus": MostrarVirus(); break;
             case "historial": MostrarHistorial(); break;
             default: MostrarActualizaciones(); break;
