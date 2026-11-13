@@ -13,7 +13,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>0.3.7</Version>
+    <Version>0.3.8</Version>
     <ApplicationIcon>Assets\WinGer.ico</ApplicationIcon>
     <AssemblyName>WinGer</AssemblyName>
   </PropertyGroup>

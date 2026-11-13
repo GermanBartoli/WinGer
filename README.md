@@ -6,7 +6,7 @@
 <p align="center"><strong>Actualizá Windows con información, a tu ritmo.</strong><br />WinGet · Microsoft Store · VirusTotal</p>
 
 <p align="center">
-  <a href="https://github.com/GermanBartoli/WinGer/releases"><img src="https://img.shields.io/badge/versión-0.3.7-43dfbf?style=flat-square" alt="Vista previa 0.3.7" /></a>
+  <a href="https://github.com/GermanBartoli/WinGer/releases"><img src="https://img.shields.io/badge/versión-0.3.8-43dfbf?style=flat-square" alt="Vista previa 0.3.8" /></a>
   <img src="https://img.shields.io/badge/Windows-x64-0078D4?style=flat-square" alt="Windows x64" />
   <img src="https://img.shields.io/badge/.NET-10-512BD4?style=flat-square" alt=".NET 10" />
   <img src="https://img.shields.io/badge/interfaz-WinUI_3-102a43?style=flat-square" alt="WinUI 3" />
@@ -82,7 +82,7 @@ VTAI:         N/a
 Web:          N/a
 ```
 
-Arriba tenés **Consultar API**, **Consultar VTAI**, **Leer Web** y **Consultar las 3**. Actúan sobre las aplicaciones seleccionadas; usá **Seleccionar visibles** para incluir todas las que muestra el filtro. **Consultar las 3** recorre las fuentes en orden, conserva su caché vigente y no instala programas. La lectura Web puede requerir intervención. La instalación sigue en **Actualizar programas seleccionados…**.
+Arriba tenés **Consultar API**, **Consultar VTAI**, **Leer Web** y **Consultar las 3**. Actúan sobre las aplicaciones seleccionadas; usá **Seleccionar visibles** para incluir todas las que muestra el filtro. **Consultar las 3** recorre las fuentes en orden, renueva los informes sin usar caché y no instala programas. La lectura Web puede requerir intervención. La instalación sigue en **Actualizar programas seleccionados…**.
 
 Después de consultar aparecen las detecciones, las sospechas y la fecha/hora de consulta. **Ver detalles / error** muestra el método, el hash, la fecha del informe y el resultado de cada fuente, además de la última operación.
 
@@ -145,6 +145,12 @@ La sección **Microsoft Store** consulta actualizaciones e inventario mediante l
 Consultar un hash no sube el archivo. Las subidas desde el centro VirusTotal requieren confirmación porque pueden compartir el contenido con terceros. La clave de vt-cli se entrega en el entorno de su proceso, no en los argumentos ni en el historial.
 
 **Borrar caché** elimina búsquedas e informes reutilizables; conserva ajustes, credenciales, historial e instaladores. Los archivos descargados pueden borrarse cuando no haya operaciones en curso y deberán comprobarse de nuevo antes de instalar.
+
+## Novedades de 0.3.8
+
+- Consulta VTAI individual en cada tarjeta.
+- Las consultas manuales API y VTAI omiten la caché; las automáticas la conservan.
+- Tarjetas de altura flexible y barras de botones que se ajustan al ancho disponible.
 
 ## Novedades de 0.3.7
 

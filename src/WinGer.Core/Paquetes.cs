@@ -142,11 +142,11 @@ public static class Manifiestos
 
 public sealed class ServicioPaquetes(EjecutorProcesos procesos, ServicioVirusTotal virus)
 {
-    private async Task<InformeVirusTotal?> ConsultarApiAsync(Paquete paquete, string hash, string clave, CancellationToken token)
+    private async Task<InformeVirusTotal?> ConsultarApiAsync(Paquete paquete, string hash, string clave, CancellationToken token, bool forzarConsulta = false)
     {
         try
         {
-            var informe = await virus.ConsultarAsync(hash, clave, token);
+            var informe = await virus.ConsultarAsync(hash, clave, token, forzarConsulta);
             paquete.RegistrarConsulta("API", hash, informe);
             return informe;
         }
@@ -160,13 +160,13 @@ public sealed class ServicioPaquetes(EjecutorProcesos procesos, ServicioVirusTot
         paquete.HashPublicado = TablaWinGet.LeerHashPublicado(respuesta.Salida);
         return paquete.HashPublicado;
     }
-    public async Task ConsultarPublicadoAsync(Paquete paquete, string clave, CancellationToken token)
+    public async Task ConsultarPublicadoAsync(Paquete paquete, string clave, CancellationToken token, bool forzarConsulta = false)
     {
         paquete.Descarga = null; paquete.Estado = "Consultando hash publicado…"; paquete.Nivel = "gris";
         try
         {
             var hash = await ObtenerHashAsync(paquete, token);
-            var informe = await ConsultarApiAsync(paquete, hash, clave, token);
+            var informe = await ConsultarApiAsync(paquete, hash, clave, token, forzarConsulta);
             paquete.Detalle = $"Hash publicado por WinGet: {hash}\n\n{informe?.Resumen ?? "No hay informe para este hash."}\n\nNo se descargó ni subió el instalador. Antes de instalar se comprobarán el archivo real y su firma.";
             if (informe is { Maliciosos: > 0 } or { Sospechosos: > 0 }) { paquete.Nivel = "rojo"; paquete.Estado = "Informe con detecciones · bloqueado"; }
             else if (PoliticaInstalacion.InformeAprobado(informe, DateTimeOffset.UtcNow)) { paquete.Nivel = "verde"; paquete.Estado = "Informe sin detecciones · archivo aún sin verificar"; }

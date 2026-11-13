@@ -25,10 +25,10 @@ public sealed partial class MainWindow
         credenciales.Add(new PasswordCredential("WinGer.VTAI", "usuario", valor));
         return valor;
     }
-    private async Task ConsultarVtai(Paquete paquete, string credencial, CancellationToken token)
+    private async Task ConsultarVtai(Paquete paquete, string credencial, CancellationToken token, bool forzarConsulta = false)
     {
         var hash = await Gestor.ObtenerHashAsync(paquete, token);
-        var informe = await Vtai.ConsultarAsync(hash, credencial, token);
+        var informe = await Vtai.ConsultarAsync(hash, credencial, token, forzarConsulta);
         paquete.RegistrarConsulta("VTAI", hash, informe);
         paquete.Descarga = null;
         paquete.Detalle = $"Fuente: VirusTotal AI · consultado {DateTimeOffset.Now:g}\nSHA-256: {hash}\n\n{informe?.Resumen ?? "Sin informe existente."}\n\n{informe?.Json}\n\nEl instalador no se descargó ni se subió. Cero detecciones no garantiza seguridad.";
@@ -96,8 +96,8 @@ public sealed partial class MainWindow
                 {
                     switch (fuente)
                     {
-                        case "API": await Gestor.ConsultarPublicadoAsync(paquete, LeerClave(), token); break;
-                        case "VTAI": await ConsultarVtai(paquete, await ObtenerTokenVtai(token), token); break;
+                        case "API": await Gestor.ConsultarPublicadoAsync(paquete, LeerClave(), token, forzarConsulta: true); break;
+                        case "VTAI": await ConsultarVtai(paquete, await ObtenerTokenVtai(token), token, forzarConsulta: true); break;
                         case "Web":
                             if (omitirWeb) MarcarWebPendiente(paquete);
                             else omitirWeb = !await ConsultarWeb(paquete, token);
@@ -119,6 +119,15 @@ public sealed partial class MainWindow
         }
         if (pendientes > 0) throw new InvalidOperationException($"{pendientes} consultas pendientes. Revisá Ver detalles / error; los resultados anteriores se conservaron.");
     });
+    private async void ConsultarVtaiPaquete(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is not Paquete paquete) return;
+        await Ejecutar("Consulta VTAI sin caché", async token =>
+        {
+            try { await ConsultarVtai(paquete, await ObtenerTokenVtai(token), token, forzarConsulta: true); }
+            catch (Exception error) { paquete.RegistrarErrorConsulta("VTAI", error.Message); throw; }
+        });
+    }
     private async void LeerInformeWeb(object sender, RoutedEventArgs e)
     {
         if ((sender as FrameworkElement)?.Tag is Paquete paquete)

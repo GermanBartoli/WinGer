@@ -20,10 +20,10 @@ public sealed class ServicioVirusTotalAi(HttpClient cliente, AlmacenLocal almace
         if (!Regex.IsMatch(valor, @"\Avtai_[A-Za-z0-9_-]+\z")) throw new InvalidOperationException("VTAI devolvió una credencial no reconocida.");
         return valor;
     }
-    public async Task<InformeVirusTotal?> ConsultarAsync(string hash, string credencial, CancellationToken token)
+    public async Task<InformeVirusTotal?> ConsultarAsync(string hash, string credencial, CancellationToken token, bool forzarConsulta = false)
     {
         hash = Hashes.Validar(hash);
-        if (informes.TryGetValue(hash, out var anterior) && anterior.Fecha <= DateTimeOffset.UtcNow && anterior.Fecha >= DateTimeOffset.UtcNow.AddHours(-1)) return anterior.Informe;
+        if (!forzarConsulta && informes.TryGetValue(hash, out var anterior) && anterior.Fecha <= DateTimeOffset.UtcNow && anterior.Fecha >= DateTimeOffset.UtcNow.AddHours(-1)) return anterior.Informe;
         var espera = siguiente - DateTimeOffset.UtcNow;
         if (espera > TimeSpan.Zero) await Task.Delay(espera, token);
         siguiente = DateTimeOffset.UtcNow.AddSeconds(1.1);

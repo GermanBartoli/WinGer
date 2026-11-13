@@ -64,6 +64,22 @@ static class PruebasCache
                 catch (InvalidOperationException) { rechazado = true; }
                 if (codigo != HttpStatusCode.NotFound) verificar(rechazado && almacen.LeerInformesVtai().Count == 0, "VTAI rechaza y no almacena HTTP " + (int)codigo);
             }
+            foreach (var previo in new InformeVirusTotal?[] { null, informeFuente with { Maliciosos = 9 } })
+            {
+                almacen.GuardarInformesVtai(new() { [hash] = new(fecha, previo) });
+                using var remotoVtai = new HttpClient(new RespuestasVtai(HttpStatusCode.OK, json));
+                var servicioVtai = new ServicioVirusTotalAi(remotoVtai, almacen);
+                verificar(await servicioVtai.ConsultarAsync(hash, "vtai_prueba", default) == previo, "consulta automática VTAI conserva caché");
+                verificar((await servicioVtai.ConsultarAsync(hash, "vtai_prueba", default, forzarConsulta: true))?.Maliciosos == 0, "consulta manual VTAI reemplaza informe o ausencia guardados");
+                verificar(almacen.LeerInformesVtai()[hash].Informe?.Maliciosos == 0, "VTAI persiste informe renovado");
+                almacen.GuardarInformes(new() { [hash] = new(fecha, previo) });
+                var jsonApi = """{"data":{"attributes":{"last_analysis_stats":{"malicious":0,"suspicious":0,"undetected":60,"harmless":0}}}}""";
+                using var remotoApi = new HttpClient(new Simulador(HttpStatusCode.OK, jsonApi));
+                var servicioApi = new ServicioVirusTotal(remotoApi, almacen);
+                verificar(await servicioApi.ConsultarAsync(hash, "prueba", default) == previo, "consulta automática API conserva caché");
+                verificar((await servicioApi.ConsultarAsync(hash, "prueba", default, forzarConsulta: true))?.Maliciosos == 0, "consulta manual API reemplaza informe o ausencia guardados");
+                verificar(almacen.LeerInformes()[hash].Informe?.Maliciosos == 0, "API persiste informe renovado");
+            }
             var finalizado = new Paquete { Id = "Prueba.App", Nombre = "Prueba", Instalada = "1", Disponible = "2", Estado = "Guardado · Actualizado · 2 · con advertencia de firma" };
             var pendiente = new Paquete { Id = "Pendiente.App", Nombre = "Pendiente", Instalada = "1", Disponible = "2", Seleccionado = true, Estado = "Instalador finalizado · versión pendiente de confirmar" };
             almacen.RegistrarActualizacion(pendiente);

@@ -93,14 +93,14 @@ public sealed class ServicioVirusTotal(HttpClient cliente, AlmacenLocal? almacen
             throw new InvalidOperationException("El informe de vt-cli no corresponde al archivo descargado.");
         return Interpretar(plano ? "{\"data\":{\"attributes\":" + objeto.GetRawText() + "}}" : "{\"data\":" + objeto.GetRawText() + "}", hash);
     }
-    public async Task<InformeVirusTotal?> ConsultarAsync(string hash, string clave, CancellationToken cancelacion)
+    public async Task<InformeVirusTotal?> ConsultarAsync(string hash, string clave, CancellationToken cancelacion, bool forzarConsulta = false)
     {
         hash = Hashes.Validar(hash);
         if (string.IsNullOrWhiteSpace(clave)) throw new InvalidOperationException("Guardá tu clave de VirusTotal en Configuración.");
         await turno.WaitAsync(cancelacion);
         try
         {
-            if (informes.TryGetValue(hash, out var guardado) && guardado.Fecha <= DateTimeOffset.UtcNow && guardado.Fecha >= DateTimeOffset.UtcNow.AddHours(-1)) return guardado.Informe;
+            if (!forzarConsulta && informes.TryGetValue(hash, out var guardado) && guardado.Fecha <= DateTimeOffset.UtcNow && guardado.Fecha >= DateTimeOffset.UtcNow.AddHours(-1)) return guardado.Informe;
             var espera = proximaConsulta - DateTimeOffset.UtcNow;
             if (espera > TimeSpan.Zero) await Task.Delay(espera, cancelacion);
             proximaConsulta = DateTimeOffset.UtcNow.AddSeconds(16);

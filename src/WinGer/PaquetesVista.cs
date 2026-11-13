@@ -40,7 +40,7 @@ public sealed partial class MainWindow
         {
             token.ThrowIfCancellationRequested();
             Modelo.Estado = $"Analizando {i + 1}/{seleccion.Length}: {seleccion[i].Nombre}";
-            try { await Gestor.ConsultarPublicadoAsync(seleccion[i], clave, token); }
+            try { await Gestor.ConsultarPublicadoAsync(seleccion[i], clave, token, forzarConsulta: true); }
             catch (OperationCanceledException) { throw; }
             catch { fallos++; }
             almacen.Registrar("Análisis · " + seleccion[i].Id, seleccion[i].Estado);

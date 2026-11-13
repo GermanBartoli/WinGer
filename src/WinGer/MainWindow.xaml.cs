@@ -25,7 +25,7 @@ public sealed partial class MainWindow : Window
     private TextBox? resultados;
     private BandejaSistema? bandeja;
     private readonly List<Paquete> paquetes = [];
-    private GridView? listaPaquetes;
+    private ItemsControl? listaPaquetes;
     private TextBlock? contadorPaquetes;
     private string filtroPaquetes = "";
     private ServicioPaquetes Gestor => new(procesos, virus);
@@ -120,30 +120,30 @@ public sealed partial class MainWindow : Window
     private void MostrarActualizaciones()
     {
         Encabezado("Tus actualizaciones", "Buscá actualizaciones y consultá sus hashes automáticamente con VTAI, sin clave clásica. Podés elegir lectura web experimental en Configuración.");
-        var acciones = Fila();
+        var acciones = new PanelAjustable();
         acciones.Children.Add(Boton("Buscar actualizaciones", BuscarPaquetes));
         acciones.Children.Add(Boton("Actualizar programas seleccionados…", () => ActualizarGrupo(paquetes.Where(p => p.Seleccionado).ToArray())));
         Contenido.Children.Add(acciones);
-        var accionesApi = Fila();
+        var accionesApi = new PanelAjustable();
         accionesApi.Children.Add(Boton("Consultar API", () => ConsultarFuentesSeleccion(["API"])));
         accionesApi.Children.Add(Boton("Consultar API faltantes", () => ConsultarFuentesSeleccion(["API"], soloApiFaltantes: true)));
         Contenido.Children.Add(accionesApi);
-        var fuentes = Fila();
+        var fuentes = new PanelAjustable();
         fuentes.Children.Add(Boton("Consultar VTAI", () => ConsultarFuentesSeleccion(["VTAI"])));
         fuentes.Children.Add(Boton("Leer Web", () => ConsultarFuentesSeleccion(["Web"])));
         fuentes.Children.Add(Boton("Consultar las 3", () => ConsultarFuentesSeleccion(["API", "VTAI", "Web"])));
         Contenido.Children.Add(fuentes);
-        Contenido.Children.Add(Texto("Consultas sobre las aplicaciones seleccionadas. Consultar las 3 actualiza los resultados, no instala programas. Web puede pedir intervención; API y VTAI pueden reutilizar caché vigente."));
+        Contenido.Children.Add(Texto("Consultas sobre las aplicaciones seleccionadas. Consultar las 3 actualiza los resultados, no instala programas. Las consultas manuales renuevan el informe sin usar caché. Web puede pedir intervención."));
         Contenido.Children.Add(Texto("API faltantes: consulta las seleccionadas sin informe o con error. Conserva los informes existentes, incluso antiguos; Consultar API permite renovarlos. Web verde indica un informe sin detecciones ni sospechas; el instalador todavía no fue verificado."));
         var buscar = new TextBox { PlaceholderText = "Buscar por nombre o identificador", Text = filtroPaquetes };
         buscar.TextChanged += (_, _) => { filtroPaquetes = buscar.Text; FiltrarPaquetes(); GuardarCache(); };
         Contenido.Children.Add(buscar);
-        var seleccion = Fila();
+        var seleccion = new PanelAjustable();
         seleccion.Children.Add(Boton("Seleccionar visibles", () => { foreach (var p in Visibles()) p.Seleccionado = true; ActualizarContador(); return Task.CompletedTask; }));
         seleccion.Children.Add(Boton("Limpiar selección", () => { foreach (var p in paquetes) p.Seleccionado = false; ActualizarContador(); return Task.CompletedTask; }));
         contadorPaquetes = Texto(""); seleccion.Children.Add(contadorPaquetes); Contenido.Children.Add(seleccion);
         Contenido.Children.Add(Texto("● Verde: informe sin detecciones, archivo aún sin verificar   ● Rojo: bloqueado   ● Amarillo: revisar   ● Gris: sin consulta vigente"));
-        listaPaquetes = new GridView { SelectionMode = ListViewSelectionMode.None, IsItemClickEnabled = false,
+        listaPaquetes = new ItemsControl { ItemsPanel = (ItemsPanelTemplate)Raiz.Resources["PanelTarjetas"],
             ItemTemplate = (DataTemplate)Raiz.Resources["TarjetaPaquete"], HorizontalAlignment = HorizontalAlignment.Stretch };
         Contenido.Children.Add(listaPaquetes);
         FiltrarPaquetes();
@@ -160,7 +160,7 @@ public sealed partial class MainWindow : Window
         {
             var caja = resultados;
             var hashValidado = Hashes.Validar(hash.Text);
-            var informe = await virus.ConsultarAsync(hashValidado, LeerClave(), token);
+            var informe = await virus.ConsultarAsync(hashValidado, LeerClave(), token, forzarConsulta: true);
             salidaVirus = informe is null ? "VirusTotal no tiene informe para este hash. No significa que sea seguro. No se subió ningún archivo." : informe.Resumen + "\n\n" + informe.Json;
             if (caja is not null) caja.Text = salidaVirus;
         })));
