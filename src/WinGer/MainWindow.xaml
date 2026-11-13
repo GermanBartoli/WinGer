@@ -20,7 +20,7 @@
             </StackPanel>
             <StackPanel Orientation="Horizontal" Spacing="8"><Button Content="Ver web" Tag="{Binding}" Click="AbrirInformeWeb"/><Button Content="Leer web · experimental" Tag="{Binding}" Click="LeerInformeWeb"/></StackPanel>
             <StackPanel Orientation="Horizontal" Spacing="8"><Button Content="Consultar API" Tag="{Binding}" Click="AnalizarPaquete"/><Button Content="Consultar VTAI" Tag="{Binding}" Click="ConsultarVtaiPaquete"/></StackPanel>
-            <Button Content="Actualizar" Tag="{Binding}" Click="ActualizarPaquete" HorizontalAlignment="Stretch"/>
+            <Button Content="Actualizar" Style="{StaticResource AccentButtonStyle}" Tag="{Binding}" Click="ActualizarPaquete" HorizontalAlignment="Stretch"/>
             <Button Content="Subir instalador a VirusTotal…" Tag="{Binding}" Click="PrepararSubidaPaquete" IsEnabled="{Binding PuedePrepararSubida}" HorizontalAlignment="Stretch"/>
             <Button Content="Ver detalles / error" Tag="{Binding}" Click="DetallesPaquete" HorizontalAlignment="Stretch"/>
           </StackPanel>
@@ -36,7 +36,7 @@
         <NavigationViewItem Content="VirusTotal" Tag="virus" Icon="ProtectedDocument"/>
         <NavigationViewItem Content="Historial" Tag="historial" Icon="Clock"/>
       </NavigationView.MenuItems>
-      <NavigationView.PaneFooter><TextBlock Text="WinGer · Vista previa 0.3.11" Margin="16" Opacity="0.5"/></NavigationView.PaneFooter>
+      <NavigationView.PaneFooter><TextBlock Text="WinGer · Vista previa 0.3.12" Margin="16" Opacity="0.5"/></NavigationView.PaneFooter>
       <ScrollViewer><StackPanel x:Name="Contenido" Margin="32,24,32,32" Spacing="20" MaxWidth="1200" HorizontalAlignment="Stretch"/></ScrollViewer>
     </NavigationView>
     <Border Grid.Row="1" Padding="24,12" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"><Grid ColumnSpacing="12"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><ProgressRing IsActive="{x:Bind Modelo.Ocupado, Mode=OneWay}" Width="20" Height="20"/><TextBlock Grid.Column="1" Text="{x:Bind Modelo.Estado, Mode=OneWay}" VerticalAlignment="Center" TextWrapping="Wrap"/><Button Grid.Column="2" Content="Cancelar" Click="Cancelar" IsEnabled="{x:Bind Modelo.Ocupado, Mode=OneWay}"/><TextBlock Grid.Column="3" Text="{x:Bind Modelo.Pendientes, Mode=OneWay}" VerticalAlignment="Center" FontWeight="SemiBold"/></Grid></Border>

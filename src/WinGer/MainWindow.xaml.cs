@@ -27,6 +27,8 @@ public sealed partial class MainWindow : Window
     private readonly List<Paquete> paquetes = [];
     private ItemsControl? listaPaquetes;
     private TextBlock? contadorPaquetes;
+    private bool ordenarPorDetecciones = true;
+    private bool soloSeleccionados;
     private string filtroPaquetes = "";
     private ServicioPaquetes Gestor => new(procesos, virus);
 
@@ -115,14 +117,16 @@ public sealed partial class MainWindow : Window
             Modelo.Estado = error.Message;
             almacen.Registrar(nombre, "No completado");
         }
-        finally { cancelacion = null; Modelo.Ocupado = false; GuardarCache(); }
+        finally { cancelacion = null; Modelo.Ocupado = false; FiltrarPaquetes(); GuardarCache(); }
     }
     private void MostrarActualizaciones()
     {
         Encabezado("Tus actualizaciones", "Buscá actualizaciones y consultá sus hashes automáticamente con VTAI, sin clave clásica. Podés elegir lectura web experimental en Configuración.");
         var acciones = new PanelAjustable();
         acciones.Children.Add(Boton("Buscar actualizaciones", BuscarPaquetes));
-        acciones.Children.Add(Boton("Actualizar programas seleccionados…", () => ActualizarGrupo(paquetes.Where(p => p.Seleccionado).ToArray())));
+        var actualizar = Boton("Actualizar programas seleccionados…", () => ActualizarGrupo(paquetes.Where(p => p.Seleccionado).ToArray()));
+        actualizar.Style = (Style)Application.Current.Resources["AccentButtonStyle"];
+        acciones.Children.Add(actualizar);
         Contenido.Children.Add(acciones);
         var accionesApi = new PanelAjustable();
         accionesApi.Children.Add(Boton("Consultar API", () => ConsultarFuentesSeleccion(["API"])));
@@ -138,6 +142,14 @@ public sealed partial class MainWindow : Window
         var buscar = new TextBox { PlaceholderText = "Buscar por nombre o identificador", Text = filtroPaquetes };
         buscar.TextChanged += (_, _) => { filtroPaquetes = buscar.Text; FiltrarPaquetes(); GuardarCache(); };
         Contenido.Children.Add(buscar);
+        var filtros = new PanelAjustable();
+        var orden = new ComboBox { Header = "Ordenar", ItemsSource = new[] { "Sin detecciones → pendientes → rojos", "Nombre A–Z" }, SelectedIndex = ordenarPorDetecciones ? 0 : 1, MinWidth = 290 };
+        orden.SelectionChanged += (_, _) => { ordenarPorDetecciones = orden.SelectedIndex == 0; FiltrarPaquetes(); GuardarCache(); };
+        var seleccionados = new CheckBox { Content = "Solo seleccionadas", IsChecked = soloSeleccionados };
+        seleccionados.Checked += (_, _) => { soloSeleccionados = true; FiltrarPaquetes(); GuardarCache(); };
+        seleccionados.Unchecked += (_, _) => { soloSeleccionados = false; FiltrarPaquetes(); GuardarCache(); };
+        filtros.Children.Add(orden); filtros.Children.Add(seleccionados); Contenido.Children.Add(filtros);
+        Contenido.Children.Add(Texto("Se guardan búsqueda, orden y filtro. Se toma el mayor número de detecciones entre API, VTAI y Web; los resultados sin consultar quedan con los pendientes."));
         var seleccion = new PanelAjustable();
         seleccion.Children.Add(Boton("Seleccionar visibles", () => { foreach (var p in Visibles()) p.Seleccionado = true; ActualizarContador(); return Task.CompletedTask; }));
         seleccion.Children.Add(Boton("Limpiar selección", () => { foreach (var p in paquetes) p.Seleccionado = false; ActualizarContador(); return Task.CompletedTask; }));

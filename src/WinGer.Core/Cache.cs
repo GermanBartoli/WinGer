@@ -4,6 +4,8 @@ public sealed class CacheSesion
 {
     public DateTimeOffset? UltimaBusqueda { get; set; }
     public List<Paquete> Paquetes { get; set; } = [];
+    public bool OrdenarPorDetecciones { get; set; } = true;
+    public bool SoloSeleccionados { get; set; }
     public string Filtro { get; set; } = "";
     public string Hash { get; set; } = "";
     public string SalidaVirus { get; set; } = "";

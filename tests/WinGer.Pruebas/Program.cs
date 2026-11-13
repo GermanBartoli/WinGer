@@ -135,6 +135,15 @@ Verificar(PoliticaInstalacion.PuedeInstalar(descarga with { DesinstalarAnterior 
 var paqueteReemplazo = new Paquete { Nombre = "Prueba", Id = "Editor.Prueba", Instalada = "1", Disponible = "2", Descarga = descarga with { DesinstalarAnterior = true } };
 var gestorReemplazo = new ServicioPaquetes(new EjecutorProcesos(), new ServicioVirusTotal(new HttpClient()));
 await Rechazar(() => gestorReemplazo.ActualizarAsync(paqueteReemplazo, "ficticia", default), "sin confirmación no toca archivos ni desinstala");
+var verdeOrden = new Paquete { Nombre = "Verde", Id = "Prueba.Verde", Instalada = "1", Disponible = "2", ResultadoApi = new(hash, "API", limpio, ahora) };
+var rojoOrden = new Paquete { Nombre = "Rojo", Id = "Prueba.Rojo", Instalada = "1", Disponible = "2", ResultadoApi = new(hash, "API", limpio, ahora), ResultadoWeb = new(hash, "Web", limpio with { Maliciosos = 3 }, ahora) };
+var pendienteOrden = new Paquete { Nombre = "Pendiente", Id = "Prueba.Pendiente", Instalada = "1", Disponible = "2" };
+Verificar(new[] { rojoOrden, pendienteOrden, verdeOrden }.OrderBy(OrdenPaquetes.Grupo).SequenceEqual(new[] { verdeOrden, pendienteOrden, rojoOrden }), "ordena sin detecciones, pendientes y rojos");
+Verificar(OrdenPaquetes.Detecciones(rojoOrden) == 3, "una fuente verde no oculta detecciones de otra fuente");
+rojoOrden.ResultadoVtai = new(hash, "VTAI", limpio with { Maliciosos = 2 }, ahora);
+Verificar(OrdenPaquetes.Detecciones(rojoOrden) == 3, "no suma detecciones duplicadas entre fuentes");
+verdeOrden.Nivel = "amarillo";
+Verificar(OrdenPaquetes.Grupo(verdeOrden) == 1, "advertencia de instalación conserva prioridad pendiente");
 var jsonCli = "[{\"id\":\"" + hash + "\",\"attributes\":{\"last_analysis_stats\":{\"malicious\":0,\"suspicious\":0,\"undetected\":65,\"harmless\":0},\"last_analysis_date\":" + ahora.ToUnixTimeSeconds() + "}}]";
 Verificar(ServicioVirusTotal.InterpretarCli(jsonCli, hash).SinDeteccion == 65, "informe de vt-cli vinculado al hash");
 await Rechazar(() => { ServicioVirusTotal.InterpretarCli(jsonCli, new string('a', 64)); return Task.CompletedTask; }, "vt-cli con hash distinto se rechaza");

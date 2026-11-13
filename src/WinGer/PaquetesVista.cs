@@ -6,7 +6,11 @@ namespace WinGer;
 
 public sealed partial class MainWindow
 {
-    private IEnumerable<Paquete> Visibles() => paquetes.Where(p => p.Nombre.Contains(filtroPaquetes, StringComparison.OrdinalIgnoreCase) || p.Id.Contains(filtroPaquetes, StringComparison.OrdinalIgnoreCase));
+    private IEnumerable<Paquete> Visibles()
+    {
+        var visibles = paquetes.Where(p => (!soloSeleccionados || p.Seleccionado) && (p.Nombre.Contains(filtroPaquetes, StringComparison.OrdinalIgnoreCase) || p.Id.Contains(filtroPaquetes, StringComparison.OrdinalIgnoreCase)));
+        return ordenarPorDetecciones ? visibles.OrderBy(OrdenPaquetes.Grupo).ThenBy(OrdenPaquetes.Detecciones).ThenBy(p => p.Nombre, StringComparer.CurrentCultureIgnoreCase) : visibles.OrderBy(p => p.Nombre, StringComparer.CurrentCultureIgnoreCase);
+    }
     private void ActualizarContador()
     {
         Modelo.Pendientes = $"{paquetes.Count} apps pendientes";

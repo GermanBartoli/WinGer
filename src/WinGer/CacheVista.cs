@@ -9,7 +9,7 @@ public sealed partial class MainWindow
     private void RestaurarCache()
     {
         var cache = almacen.LeerCache();
-        ultimaBusqueda = cache.UltimaBusqueda; filtroPaquetes = cache.Filtro;
+        ultimaBusqueda = cache.UltimaBusqueda; filtroPaquetes = cache.Filtro; ordenarPorDetecciones = cache.OrdenarPorDetecciones; soloSeleccionados = cache.SoloSeleccionados;
         hashActual = cache.Hash;
         if (!string.IsNullOrEmpty(cache.SalidaVirus)) salidaVirus = cache.SalidaVirus;
         foreach (var completado in cache.Paquetes.Where(p => p.ActualizacionConfirmada))
@@ -43,13 +43,13 @@ public sealed partial class MainWindow
         foreach (var p in paquetes) p.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName != nameof(Paquete.Seleccionado)) return;
-            ActualizarContador(); GuardarCache();
+            DispatcherQueue.TryEnqueue(() => { FiltrarPaquetes(); GuardarCache(); });
         };
     }
     private void GuardarCache()
     {
         try { almacen.GuardarCache(new CacheSesion { UltimaBusqueda = ultimaBusqueda, Paquetes = paquetes,
-            Filtro = filtroPaquetes, Hash = hashActual, SalidaVirus = salidaVirus }); }
+            OrdenarPorDetecciones = ordenarPorDetecciones, SoloSeleccionados = soloSeleccionados, Filtro = filtroPaquetes, Hash = hashActual, SalidaVirus = salidaVirus }); }
         catch (Exception error) { Modelo.Estado = "No se pudo guardar la caché: " + error.Message; }
     }
     private void MostrarOpcionesCache()
@@ -84,7 +84,7 @@ public sealed partial class MainWindow
         {
             if (Modelo.Ocupado) { Modelo.Estado = "Esperá a que termine la operación antes de borrar la caché."; return Task.CompletedTask; }
             almacen.BorrarCache(); virus.BorrarCache(); vtai?.BorrarCache();
-            paquetes.Clear(); filtroPaquetes = ""; hashActual = ""; salidaVirus = ""; ultimaBusqueda = null;
+            paquetes.Clear(); ordenarPorDetecciones = true; soloSeleccionados = false; filtroPaquetes = ""; hashActual = ""; salidaVirus = ""; ultimaBusqueda = null;
             ActualizarContador();
             Modelo.Estado = "Caché borrada.";
             return Task.CompletedTask;

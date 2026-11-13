@@ -14,11 +14,11 @@ static class PruebasCache
             var almacen = new AlmacenLocal(carpeta);
             var fecha = DateTimeOffset.UtcNow;
             almacen.Guardar(new Configuracion { Tema = "Claro" }); almacen.Registrar("Prueba", "Guardada");
-            almacen.GuardarCache(new CacheSesion { UltimaBusqueda = fecha, Filtro = "editor", Hash = hash, SalidaVirus = "informe",
+            almacen.GuardarCache(new CacheSesion { UltimaBusqueda = fecha, Filtro = "editor", OrdenarPorDetecciones = false, SoloSeleccionados = true, Hash = hash, SalidaVirus = "informe",
                 Paquetes = [new Paquete { Id = "Editor.Prueba", Nombre = "Editor", Instalada = "1", Disponible = "2", Seleccionado = true,
                     HashPublicado = hash, Estado = "VTAI · 1 detección", Nivel = "rojo", Detalle = "Detalle persistido", Descarga = new("archivo.exe", hash, "exe", "user", true, "Valid", null, fecha) }] });
             var restaurada = new AlmacenLocal(carpeta).LeerCache();
-            verificar(restaurada.UltimaBusqueda == fecha && restaurada.Filtro == "editor" && restaurada.Hash == hash && restaurada.SalidaVirus == "informe", "sesión completa restaurada desde otra instancia");
+            verificar(restaurada.UltimaBusqueda == fecha && restaurada.Filtro == "editor" && !restaurada.OrdenarPorDetecciones && restaurada.SoloSeleccionados && restaurada.Hash == hash && restaurada.SalidaVirus == "informe", "sesión completa restaurada desde otra instancia");
             verificar(restaurada.Paquetes.Single() is { Seleccionado: true, Disponible: "2", Estado: "VTAI · 1 detección", Nivel: "rojo", Detalle: "Detalle persistido", Descarga: null }, "paquetes y selección persisten sin autorización de instalación");
             var paquete = restaurada.Paquetes.Single();
             var informeFuente = new InformeVirusTotal(hash, 0, 0, 60, 0, fecha, "{}");
