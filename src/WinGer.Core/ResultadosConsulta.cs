@@ -9,11 +9,11 @@ public sealed record ResultadoConsulta(string Hash, string Metodo, InformeVirusT
         $" · {Consultado.ToLocalTime():dd/MM HH:mm}" + (Error is null ? "" : " · último intento falló");
     [System.Text.Json.Serialization.JsonIgnore]
     public string Color => Informe is { Maliciosos: > 0 } or { Sospechosos: > 0 } ? "#F27373" :
-        Error is not null || Metodo == "Web" || !PoliticaInstalacion.InformeAprobado(Informe, DateTimeOffset.UtcNow) ? "#E8B44D" : "#42C98B";
+        Error is not null || (Metodo == "Web" ? Informe is null || Informe.SinDeteccion + Informe.Inofensivos <= 0 : !PoliticaInstalacion.InformeAprobado(Informe, DateTimeOffset.UtcNow)) ? "#E8B44D" : "#42C98B";
     [System.Text.Json.Serialization.JsonIgnore]
     public string Detalle => $"Método: {Metodo}\nSHA-256: {Hash}\nConsulta: {Consultado.ToLocalTime():g}\n{Informe?.Resumen ?? "Sin informe existente."}" +
         (Error is null ? "" : "\nÚltimo intento: " + Error) +
-        (Metodo == "Web" ? "\nAmarillo en Web: lectura informativa; no verifica el instalador ni habilita su instalación. Cero detecciones no garantiza seguridad." : "");
+        (Metodo == "Web" ? "\nLectura web informativa; no verifica el instalador ni habilita su instalación. Cero detecciones no garantiza seguridad." : "");
 }
 
 public sealed partial class Paquete

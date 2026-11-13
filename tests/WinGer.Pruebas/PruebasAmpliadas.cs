@@ -90,7 +90,7 @@ static class PruebasAmpliadas
             verificar(paquete.ResultadoApi?.Informe is not null && paquete.DetallesConsultas.Contains("Error simulado"), "error visible conserva evidencia previa");
             await Rechazar(() => { paquete.RegistrarConsulta("Web", new string('b',64), limpio); return Task.CompletedTask; }, "una tarjeta rechaza otro hash");
             await Rechazar(() => { paquete.RegistrarConsulta("Desconocido", hash, limpio); return Task.CompletedTask; }, "fuente desconocida rechazada");
-            verificar(new ResultadoConsulta(hash, "Web", limpio, ahora).Color == "#E8B44D", "web sin detecciones permanece informativa");
+            verificar(new ResultadoConsulta(hash, "Web", limpio, ahora).Color == "#42C98B", "web sin detecciones se muestra en verde");
             verificar(new ResultadoConsulta(hash, "API", limpio with { Sospechosos = 1 }, ahora).Color == "#F27373", "sospechas visibles en rojo");
 
             // API faltantes: seis informes completos y una aplicación sin consultar.
@@ -125,8 +125,26 @@ static class PruebasAmpliadas
             caso.ResultadoApi = new(hash, "API", limpio, ahora);
             caso.HashPublicado = new string('b', 64);
             verificar(caso.NecesitaConsultaApi(), "cambiar hash exige una nueva consulta API");
-            verificar(new ResultadoConsulta(hash, "Web", limpio, ahora).Resumen.Contains("lectura informativa"), "Web explica su amarillo aun con cero detecciones");
+            verificar(new ResultadoConsulta(hash, "Web", limpio, ahora).Resumen.Contains("lectura informativa"), "Web mantiene el carácter informativo aun en verde");
             verificar(!new ResultadoConsulta(hash, "API", limpio, ahora).Resumen.Contains("lectura informativa"), "aclaración Web no modifica el renglón API");
+
+            var lectura = new ControlLecturaWeb();
+            verificar(lectura.PasarAutomaticamente && !lectura.DebeAvanzar, "paso web activado por defecto espera el resultado");
+            lectura.PasarAutomaticamente = false;
+            lectura.RegistrarResultado();
+            verificar(lectura.ResultadoDisponible && !lectura.DebeAvanzar, "pausa conserva el resultado sin avanzar");
+            lectura.PasarAutomaticamente = true;
+            verificar(lectura.DebeAvanzar, "reactivar paso automático permite continuar con resultado guardado");
+            lectura.PasarAutomaticamente = false;
+            verificar(!lectura.DebeAvanzar, "desmarcar vuelve a frenar aun con resultado disponible");
+            verificar(new Configuracion().PasarWebAutomaticamente, "preferencia de paso automático comienza marcada");
+            almacen.Guardar(new Configuracion { PasarWebAutomaticamente = false });
+            verificar(!new AlmacenLocal(carpeta).LeerConfiguracion().PasarWebAutomaticamente, "preferencia de pausa se conserva entre aperturas");
+            verificar(new ResultadoConsulta(hash, "Web", null, ahora).Color == "#E8B44D", "web sin informe sigue amarillo");
+            verificar(new ResultadoConsulta(hash, "Web", limpio with { Maliciosos = 1 }, ahora).Color == "#F27373", "web con detecciones sigue rojo");
+            verificar(new ResultadoConsulta(hash, "Web", limpio with { Sospechosos = 1 }, ahora).Color == "#F27373", "web con sospechas sigue rojo");
+            verificar(new ResultadoConsulta(hash, "Web", limpio, ahora, "Error").Color == "#E8B44D", "web con error no se pinta verde");
+            verificar(new ResultadoConsulta(hash, "Web", limpio with { SinDeteccion = 0 }, ahora).Color == "#E8B44D", "web sin motores no se pinta verde");
 
             // Registro VTAI y límites: peticiones interceptadas, sin crear identidades reales.
             var registro = new HttpSimulado(async (solicitud, token) =>

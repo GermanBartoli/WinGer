@@ -6,7 +6,7 @@
 <p align="center"><strong>Actualizá Windows con información, a tu ritmo.</strong><br />WinGet · Microsoft Store · VirusTotal</p>
 
 <p align="center">
-  <a href="https://github.com/GermanBartoli/WinGer/releases"><img src="https://img.shields.io/badge/versión-0.3.3-43dfbf?style=flat-square" alt="Vista previa 0.3.3" /></a>
+  <a href="https://github.com/GermanBartoli/WinGer/releases"><img src="https://img.shields.io/badge/versión-0.3.4-43dfbf?style=flat-square" alt="Vista previa 0.3.4" /></a>
   <img src="https://img.shields.io/badge/Windows-x64-0078D4?style=flat-square" alt="Windows x64" />
   <img src="https://img.shields.io/badge/.NET-10-512BD4?style=flat-square" alt=".NET 10" />
   <img src="https://img.shields.io/badge/interfaz-WinUI_3-102a43?style=flat-square" alt="WinUI 3" />
@@ -85,7 +85,7 @@ Después de consultar aparecen las detecciones, las sospechas y la fecha/hora de
 | Color | Cómo interpretarlo |
 | --- | --- |
 | 🟢 Verde | Informe completo y reciente sin detecciones ni sospechas. Antes de instalar aún se verifica el archivo real. |
-| 🟡 Amarillo | Falta información, el informe es antiguo, hubo un error o hay una advertencia. La lectura Web sin detecciones permanece informativa. |
+| 🟡 Amarillo | Falta información, el informe es antiguo, hubo un error o hay una advertencia. Web sin informe, con error o sin motores también queda amarillo. |
 | 🔴 Rojo | Hay detecciones, sospechas o un bloqueo de integridad. |
 | ⚪ Gris | Todavía no hay consulta registrada. |
 
@@ -136,11 +136,19 @@ Consultar un hash no sube el archivo. Las subidas desde el centro VirusTotal req
 
 **Borrar caché** elimina búsquedas e informes reutilizables; conserva ajustes, credenciales, historial e instaladores. Los archivos descargados pueden borrarse cuando no haya operaciones en curso y deberán comprobarse de nuevo antes de instalar.
 
+## Novedades de 0.3.4
+
+- **Web en verde** cuando el informe tiene motores analizados, cero detecciones y cero sospechas. Sin informe o con error sigue amarillo; detecciones y sospechas siguen rojas. Verde no habilita la instalación ni verifica el archivo real.
+- Navegador en una **ventana grande y redimensionable**, con Atrás, Recargar, Mi cuenta y Volver al informe. Podés interactuar con la página y votar manualmente desde tu cuenta.
+- **Pasar automáticamente**, entre los dos botones inferiores, comienza marcado. Al desmarcarlo se guarda el resultado y la página permanece abierta; la pausa no vence por tiempo. La preferencia queda guardada. Entrar a Mi cuenta desde una lectura pausa el avance.
+- En **Configuración → Iniciar sesión en VirusTotal / Mi cuenta web** ingresás usuario, contraseña y verificaciones en la página oficial. Se comparte el perfil persistente con las lecturas; WinGer no captura la contraseña. La conservación del acceso depende de la vigencia de las cookies de VirusTotal.
+- [WebView2 y persistencia del perfil](https://learn.microsoft.com/en-us/windows/apps/develop/ui/controls/webview2).
+
 ## Novedades de 0.3.3
 
 - **Consultar API faltantes** actúa solo sobre las seleccionadas sin informe API/vt-cli para su hash actual o con error. Si ya consultaste seis, conserva esas seis y consulta las restantes.
 - No renueva los informes existentes, aunque sean antiguos o tengan detecciones; para renovarlos usá **Consultar API**. Al instalar se siguen comprobando vigencia, hash y firma.
-- El renglón Web aclara **lectura informativa** cuando tiene cero detecciones y sospechas: su amarillo no implica una detección oculta. La lectura web no verifica el instalador.
+- El renglón Web aclara **lectura informativa** cuando tiene cero detecciones y sospechas: desde 0.3.4 se muestra verde cuando hay motores sin detecciones ni sospechas. La lectura web no verifica el instalador.
 
 ## Novedades de 0.3.2
 

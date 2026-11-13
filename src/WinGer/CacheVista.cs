@@ -54,6 +54,8 @@ public sealed partial class MainWindow
         modo.SelectionChanged += (_, _) => GuardarAjuste(() => configuracion.ConsultaAutomatica = modo.SelectedItem?.ToString() ?? "Desactivado");
         Contenido.Children.Add(modo);
         Contenido.Children.Add(Texto("VTAI usa una conexión propia de WinGer, sin clave clásica. La web experimental lee el informe visible y puede requerir intervención. Ninguna opción sube instaladores."));
+        Contenido.Children.Add(Boton("Iniciar sesión en VirusTotal / Mi cuenta web", () => Ejecutar("Cuenta web de VirusTotal", AbrirCuentaVirusTotal)));
+        Contenido.Children.Add(Texto("Ingresá tu usuario y contraseña en la página oficial. La sesión del navegador se comparte con Leer Web y se conserva entre aperturas mientras VirusTotal la mantenga vigente. Desde allí podés cerrar sesión o cambiar de cuenta."));
         var tokenVtai = new PasswordBox { Header = "Token de VTAI", PlaceholderText = "Ingresá un token para guardarlo o reemplazarlo", MaxWidth = 520, HorizontalAlignment = HorizontalAlignment.Left };
         Contenido.Children.Add(tokenVtai);
         var estadoVtai = Texto(EstadoTokenVtai());

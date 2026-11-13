@@ -134,7 +134,7 @@ public sealed partial class MainWindow : Window
         fuentes.Children.Add(Boton("Consultar las 3", () => ConsultarFuentesSeleccion(["API", "VTAI", "Web"])));
         Contenido.Children.Add(fuentes);
         Contenido.Children.Add(Texto("Consultas sobre las aplicaciones seleccionadas. Consultar las 3 actualiza los resultados, no instala programas. Web puede pedir intervención; API y VTAI pueden reutilizar caché vigente."));
-        Contenido.Children.Add(Texto("API faltantes: consulta las seleccionadas sin informe o con error. Conserva los informes existentes, incluso antiguos; Consultar API permite renovarlos. Web amarillo con 0 detecciones indica lectura informativa, no un instalador verificado."));
+        Contenido.Children.Add(Texto("API faltantes: consulta las seleccionadas sin informe o con error. Conserva los informes existentes, incluso antiguos; Consultar API permite renovarlos. Web verde indica un informe sin detecciones ni sospechas; el instalador todavía no fue verificado."));
         var buscar = new TextBox { PlaceholderText = "Buscar por nombre o identificador", Text = filtroPaquetes };
         buscar.TextChanged += (_, _) => { filtroPaquetes = buscar.Text; FiltrarPaquetes(); GuardarCache(); };
         Contenido.Children.Add(buscar);
