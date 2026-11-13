@@ -84,6 +84,8 @@ public sealed record DescargaVerificada(string Ruta, string Hash, string Tipo, s
     bool SinDependencias, string Firma, InformeVirusTotal? Informe, DateTimeOffset Consultado)
 {
     public bool DesinstalarAnterior { get; init; }
+    public RequisitosInstalacion Requisitos { get; init; } = new([], []);
+    public string DetalleDependencias { get; init; } = "";
 }
 
 public static class PoliticaInstalacion
@@ -111,7 +113,7 @@ public static class PoliticaInstalacion
         if (descarga.Informe is { Maliciosos: > 0 } or { Sospechosos: > 0 }) return "VirusTotal informa detecciones o sospechas. Instalación bloqueada.";
         if (!InformeAprobado(descarga.Informe, ahora)) return "Falta un informe reciente y completo de VirusTotal sin detecciones.";
         if (!FormatoCompatible(descarga)) return $"El formato {descarga.Tipo} todavía no está admitido.";
-        if (!descarga.SinDependencias) return "El instalador declara dependencias adicionales que WinGer todavía no comprueba. No se instalarán automáticamente.";
+        if (!descarga.SinDependencias) return "No se pudieron confirmar todas las dependencias.\n" + descarga.DetalleDependencias + "\nNo se instalarán componentes adicionales automáticamente.";
         if (descarga.Consultado < ahora.AddHours(-1)) return "La comprobación venció. Volvé a analizar el instalador.";
         return $"Windows no pudo validar la firma digital ({descarga.Firma}). No se pudo confirmar el editor mediante esta comprobación.";
     }
@@ -120,6 +122,7 @@ public static class PoliticaInstalacion
 public sealed record DatosManifiesto(string Hash, string Tipo, string Ambito, bool SinDependencias)
 {
     public bool DesinstalarAnterior { get; init; }
+    public RequisitosInstalacion Requisitos { get; init; } = new([], []);
 }
 
 public static class Manifiestos
@@ -140,10 +143,11 @@ public static class Manifiestos
         var tipo = Texto(instalador, "InstallerType"); if (tipo == "") tipo = Texto(raiz, "InstallerType");
         var ambito = Texto(instalador, "Scope"); if (ambito == "") ambito = Texto(raiz, "Scope");
         // Windows valida las dependencias ya instaladas de MSIX; no se descargan otras automáticamente.
-        var sinDependencias = tipo is "msix" or "appx" || (Nodo(raiz, "Dependencies") is null && Nodo(instalador, "Dependencies") is null);
+        var requisitos = RequisitosInstalacion.Leer(Nodo(instalador, "Dependencies") ?? Nodo(raiz, "Dependencies"));
+        var sinDependencias = tipo is "msix" or "appx" || requisitos.Vacio;
         var comportamiento = Texto(instalador, "UpgradeBehavior");
         if (comportamiento == "") comportamiento = Texto(raiz, "UpgradeBehavior");
-        return new(hash, tipo, ambito, sinDependencias) { DesinstalarAnterior = comportamiento == "uninstallPrevious" };
+        return new(hash, tipo, ambito, sinDependencias) { DesinstalarAnterior = comportamiento == "uninstallPrevious", Requisitos = requisitos };
     }
 }
 
@@ -218,9 +222,11 @@ public sealed class ServicioPaquetes(EjecutorProcesos procesos, ServicioVirusTot
             paquete.Estado = "Verificando firma y VirusTotal…";
             var firma = await FirmaAsync(ruta, token);
             var informe = await ConsultarApiAsync(paquete, hash, clave, token);
-            var descarga = new DescargaVerificada(ruta, hash, datos.Tipo, datos.Ambito, datos.SinDependencias, firma, informe, DateTimeOffset.UtcNow) { DesinstalarAnterior = datos.DesinstalarAnterior };
+            var dependencias = datos.Tipo is "msix" or "appx" ? new ComprobacionDependencias(true, "Windows comprobará las dependencias instaladas.") : await ComprobarDependenciasAsync(datos.Requisitos, token);
+            var descarga = new DescargaVerificada(ruta, hash, datos.Tipo, datos.Ambito, dependencias.Cumplidas, firma, informe, DateTimeOffset.UtcNow)
+            { DesinstalarAnterior = datos.DesinstalarAnterior, Requisitos = datos.Requisitos, DetalleDependencias = dependencias.Detalle };
             paquete.Descarga = descarga;
-            paquete.Detalle = $"SHA-256: {hash}\nFirma: {firma}\nInstalador: {datos.Tipo}\nDependencias: {(datos.Tipo is "msix" or "appx" ? "Windows comprobará las dependencias instaladas" : datos.SinDependencias ? "no declaradas" : "requieren revisión")}\nDesinstalación previa: {(datos.DesinstalarAnterior ? "requiere confirmación antes de quitar la versión instalada" : "no requerida")}\n\n{informe?.Resumen ?? "Sin informe en VirusTotal. No se subió el archivo."}\n\nArchivo: {ruta}";
+            paquete.Detalle = $"SHA-256: {hash}\nFirma: {firma}\nInstalador: {datos.Tipo}\nDependencias: {dependencias.Detalle}\nDesinstalación previa: {(datos.DesinstalarAnterior ? "requiere confirmación antes de quitar la versión instalada" : "no requerida")}\n\n{informe?.Resumen ?? "Sin informe en VirusTotal. No se subió el archivo."}\n\nArchivo: {ruta}";
             if (informe is { Maliciosos: > 0 } or { Sospechosos: > 0 } || firma is "HashMismatch" or "NotTrusted")
             { paquete.Nivel = "rojo"; paquete.Estado = "Bloqueado · detecciones o firma inválida"; }
             else if (PoliticaInstalacion.PuedeInstalar(descarga, DateTimeOffset.UtcNow))
@@ -246,6 +252,9 @@ public sealed class ServicioPaquetes(EjecutorProcesos procesos, ServicioVirusTot
         if (resultado.Codigo != 0) throw new InvalidOperationException("No se pudo comprobar la firma digital: " + resultado.Salida);
         return resultado.Salida.Trim();
     }
+    private Task<ComprobacionDependencias> ComprobarDependenciasAsync(RequisitosInstalacion requisitos, CancellationToken token) =>
+        DependenciasInstalacion.ComprobarAsync(requisitos, (id, cancelacion) => procesos.EjecutarAsync("winget.exe",
+            ["list", "--id", id, "--exact", "--source", "winget", "--disable-interactivity"], cancelacion), token);
     private async Task DesinstalarAnteriorAsync(Paquete paquete, DescargaVerificada descarga, CancellationToken token)
     {
         // Volver a identificar la versión exacta antes de modificar la instalación existente.
@@ -293,6 +302,12 @@ public sealed class ServicioPaquetes(EjecutorProcesos procesos, ServicioVirusTot
             }
             catch (Exception error) { paquete.RegistrarErrorConsulta("vt-cli", error.Message); throw; }
             token.ThrowIfCancellationRequested();
+            if (!PoliticaInstalacion.EsMsix(descarga) && !descarga.Requisitos.Vacio)
+            {
+                var dependenciasActuales = await ComprobarDependenciasAsync(descarga.Requisitos, token);
+                if (!dependenciasActuales.Cumplidas)
+                    throw new InvalidOperationException("Las dependencias cambiaron o no se pudieron confirmar. No se modificó la instalación.\n" + dependenciasActuales.Detalle);
+            }
             var advertencia = aceptarAdvertenciaFirma ? PoliticaInstalacion.Motivo(descarga, DateTimeOffset.UtcNow) : "";
             if (descarga.DesinstalarAnterior)
                 await DesinstalarAnteriorAsync(paquete, descarga, token);
@@ -313,7 +328,7 @@ public sealed class ServicioPaquetes(EjecutorProcesos procesos, ServicioVirusTot
                     throw new InvalidOperationException("El tipo de archivo no corresponde al instalador.");
                 var inicio = new ProcessStartInfo(msi ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "msiexec.exe") : descarga.Ruta)
                 { UseShellExecute = true, Verb = descarga.Ambito == "machine" ? "runas" : "open" };
-                if (msi) inicio.Arguments = $"/i \"{descarga.Ruta}\" /passive /norestart";
+                if (msi) inicio.Arguments = $"/i \"{descarga.Ruta}\" /norestart";
                 paquete.Estado = "Instalando · seguí el asistente de Windows";
                 using var instalador = Process.Start(inicio) ?? throw new InvalidOperationException("No se inició el instalador.");
                 // No interrumpir un instalador iniciado: cancelar se aplica al próximo programa.

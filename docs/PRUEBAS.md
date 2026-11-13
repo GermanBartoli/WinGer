@@ -14,6 +14,14 @@ Para incluir además la comprobación real de firma de un archivo temporal sin e
 ./scripts/Probar.ps1 -IntegracionLocal
 ```
 
+Para comprobar también las dependencias reales de OLE DB, sin descargar ni instalar:
+
+```powershell
+./scripts/Probar.ps1 -IntegracionLocal -IntegracionDependencias
+```
+
+Comprueba Visual C++ x86 y x64 ya instalados. Esta opción depende del inventario de la PC; la suite predeterminada usa respuestas simuladas.
+
 ## Cobertura
 
 | Área | Comprobación automática | Límite |
@@ -23,6 +31,7 @@ Para incluir además la comprobación real de firma de un archivo temporal sin e
 | Tres resultados | Independencia, cambios de versión/hash, colores, avisos, persistencia y notificaciones a la interfaz. | No mide distribución visual. |
 | Web | Interpretación de evidencia, origen, hash, motores, respuestas incompletas y ausencia explícita «Item not found» con origen y hash correctos. | Comprueba pausa, reanudación, preferencia persistente y colores. No abre VirusTotal ni verifica inicio de sesión, cookies reales o votos. |
 | Actualización | Formatos, firmas admitidas, vigencia, integridad, herencia de desinstalación previa y rechazo sin confirmación antes de tocar archivos o procesos. | No instala software ni prueba UAC/asistentes. |
+| Dependencias | Manifiestos genéricos, x86/x64, ID exacto, versiones mínimas, bloques vacíos, herencia, errores de consulta, cancelación y cambio de inventario entre comprobaciones. | No instala requisitos faltantes ni activa características de Windows. |
 | Datos locales | Ajustes, historial, archivos dañados y borrado de cache conservando el resto. | Usa directorios temporales, no tus datos. |
 | Procesos | stdout/stderr, código de salida, ocultación de clave ficticia y cancelación de un hijo. | Solo ejecuta el propio runner y herramientas de desarrollo. |
 | Interfaz | Persistencia de posición/tamaño/maximizado, minimización y límites de monitores; modelo de estado y eventos; compilación del XAML y presencia de recursos. | No prueba clics, foco, bandeja ni geometría. |

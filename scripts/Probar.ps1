@@ -1,4 +1,4 @@
-param([switch]$IntegracionLocal, [string]$Informe = "$PSScriptRoot\..\artifacts\pruebas\informe.md")
+param([switch]$IntegracionLocal, [switch]$IntegracionDependencias, [string]$Informe = "$PSScriptRoot\..\artifacts\pruebas\informe.md")
 $ErrorActionPreference = 'Stop'
 $raiz = Split-Path $PSScriptRoot -Parent
 $destinoInforme = [IO.Path]::GetFullPath($Informe)
@@ -9,7 +9,10 @@ $salidaBuild = @()
 try {
     Push-Location $raiz
     $argumentos = @('run', '--project', 'tests/WinGer.Pruebas', '-c', 'Release')
-    if ($IntegracionLocal) { $argumentos += @('--', '--integracion-firma') }
+    $opciones = @()
+    if ($IntegracionLocal) { $opciones += '--integracion-firma' }
+    if ($IntegracionDependencias) { $opciones += '--integracion-dependencias' }
+    if ($opciones.Count -gt 0) { $argumentos += @('--') + $opciones }
     $salidaPruebas = @(& dotnet @argumentos 2>&1 | ForEach-Object { "$_" })
     $codigoPruebas = $LASTEXITCODE
     $salidaPruebas | ForEach-Object { Write-Host $_ }
