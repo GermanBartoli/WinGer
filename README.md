@@ -6,7 +6,7 @@
 <p align="center"><strong>Actualizá Windows con información, a tu ritmo.</strong><br />WinGet · Microsoft Store · VirusTotal</p>
 
 <p align="center">
-  <a href="https://github.com/GermanBartoli/WinGer/releases"><img src="https://img.shields.io/badge/versión-0.3.6-43dfbf?style=flat-square" alt="Vista previa 0.3.6" /></a>
+  <a href="https://github.com/GermanBartoli/WinGer/releases"><img src="https://img.shields.io/badge/versión-0.3.7-43dfbf?style=flat-square" alt="Vista previa 0.3.7" /></a>
   <img src="https://img.shields.io/badge/Windows-x64-0078D4?style=flat-square" alt="Windows x64" />
   <img src="https://img.shields.io/badge/.NET-10-512BD4?style=flat-square" alt=".NET 10" />
   <img src="https://img.shields.io/badge/interfaz-WinUI_3-102a43?style=flat-square" alt="WinUI 3" />
@@ -33,6 +33,8 @@
 | Consultar Microsoft Store y abrir su página de descargas. | Ver el motivo de cada bloqueo y sus detalles. | Usar tema claro, oscuro o del sistema. |
 
 > **Cero detecciones no garantiza seguridad.** Consultar un informe existente tampoco significa que se haya analizado de nuevo el archivo.
+
+WinGer mantiene una única instancia: volver a abrirlo muestra la ventana existente, incluso si está minimizada u oculta en la bandeja.
 
 ## Primeros pasos
 
@@ -143,6 +145,10 @@ La sección **Microsoft Store** consulta actualizaciones e inventario mediante l
 Consultar un hash no sube el archivo. Las subidas desde el centro VirusTotal requieren confirmación porque pueden compartir el contenido con terceros. La clave de vt-cli se entrega en el entorno de su proceso, no en los argumentos ni en el historial.
 
 **Borrar caché** elimina búsquedas e informes reutilizables; conserva ajustes, credenciales, historial e instaladores. Los archivos descargados pueden borrarse cuando no haya operaciones en curso y deberán comprobarse de nuevo antes de instalar.
+
+## Novedades de 0.3.7
+
+- La instancia única se comprueba antes de iniciar WinUI. Las aperturas adicionales muestran la ventana existente y restauran su estado si estaba minimizada.
 
 ## Novedades de 0.3.6
 
