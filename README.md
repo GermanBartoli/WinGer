@@ -6,7 +6,7 @@
 <p align="center"><strong>Actualizá Windows con información, a tu ritmo.</strong><br />WinGet · Microsoft Store · VirusTotal</p>
 
 <p align="center">
-  <a href="https://github.com/GermanBartoli/WinGer/releases"><img src="https://img.shields.io/badge/versión-0.3.8-43dfbf?style=flat-square" alt="Vista previa 0.3.8" /></a>
+  <a href="https://github.com/GermanBartoli/WinGer/releases"><img src="https://img.shields.io/badge/versión-0.3.9-43dfbf?style=flat-square" alt="Vista previa 0.3.9" /></a>
   <img src="https://img.shields.io/badge/Windows-x64-0078D4?style=flat-square" alt="Windows x64" />
   <img src="https://img.shields.io/badge/.NET-10-512BD4?style=flat-square" alt=".NET 10" />
   <img src="https://img.shields.io/badge/interfaz-WinUI_3-102a43?style=flat-square" alt="WinUI 3" />
@@ -145,6 +145,12 @@ La sección **Microsoft Store** consulta actualizaciones e inventario mediante l
 Consultar un hash no sube el archivo. Las subidas desde el centro VirusTotal requieren confirmación porque pueden compartir el contenido con terceros. La clave de vt-cli se entrega en el entorno de su proceso, no en los argumentos ni en el historial.
 
 **Borrar caché** elimina búsquedas e informes reutilizables; conserva ajustes, credenciales, historial e instaladores. Los archivos descargados pueden borrarse cuando no haya operaciones en curso y deberán comprobarse de nuevo antes de instalar.
+
+## Novedades de 0.3.9
+
+- La consulta web individual y la última de una selección muestran Cerrar y volver a WinGer después de guardar el resultado.
+- Los mensajes y controles distinguen entre continuar la cola y cerrar el último informe.
+- Al terminar se vuelve a la ventana principal conservando el resultado.
 
 ## Novedades de 0.3.8
 

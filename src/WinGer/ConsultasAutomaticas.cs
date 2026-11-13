@@ -51,7 +51,7 @@ public sealed partial class MainWindow
                 if (modo == "Web experimental")
                 {
                     if (omitirWeb) MarcarWebPendiente(paquete);
-                    else omitirWeb = !await ConsultarWeb(paquete, token);
+                    else omitirWeb = !await ConsultarWeb(paquete, token, haySiguiente: paquete != paquetes[^1]);
                 }
                 else
                 {
@@ -100,7 +100,7 @@ public sealed partial class MainWindow
                         case "VTAI": await ConsultarVtai(paquete, await ObtenerTokenVtai(token), token, forzarConsulta: true); break;
                         case "Web":
                             if (omitirWeb) MarcarWebPendiente(paquete);
-                            else omitirWeb = !await ConsultarWeb(paquete, token);
+                            else omitirWeb = !await ConsultarWeb(paquete, token, haySiguiente: paquete != seleccion[^1]);
                             break;
                     }
                 }

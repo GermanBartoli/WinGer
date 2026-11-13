@@ -14,12 +14,12 @@ public sealed partial class MainWindow
         paquete.Detalle = "La lectura web quedó pendiente. Se conservan los resultados anteriores; podés volver a consultarla.";
     }
 
-    private async Task<bool> ConsultarWeb(Paquete paquete, CancellationToken token)
+    private async Task<bool> ConsultarWeb(Paquete paquete, CancellationToken token, bool haySiguiente = false)
     {
         var hash = await Gestor.ObtenerHashAsync(paquete, token);
         var url = $"https://www.virustotal.com/gui/file/{hash}/detection";
         var control = new ControlLecturaWeb(configuracion.PasarWebAutomaticamente);
-        var automatico = new CheckBox { Content = "Pasar automáticamente", IsChecked = control.PasarAutomaticamente,
+        var automatico = new CheckBox { Content = haySiguiente ? "Pasar automáticamente" : "Cerrar automáticamente al guardar", IsChecked = control.PasarAutomaticamente,
             VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
         var web = new VentanaWeb(configuracion, () => GuardarAjuste(() => { }), "VirusTotal web · " + paquete.Nombre, () => automatico.IsChecked = false, url);
         var omitirTodas = false;
@@ -27,9 +27,9 @@ public sealed partial class MainWindow
         web.Ventana.Closed += (_, _) => lectura.Cancel();
         foreach (var ancho in new[] { GridLength.Auto, new GridLength(1, GridUnitType.Star), GridLength.Auto })
             web.Pie.ColumnDefinitions.Add(new ColumnDefinition { Width = ancho });
-        var todas = new Button { Content = "Dejar pendientes todas" };
+        var todas = new Button { Content = "Dejar pendientes todas", Visibility = haySiguiente ? Visibility.Visible : Visibility.Collapsed };
         todas.Click += (_, _) => { omitirTodas = true; web.Ventana.Close(); };
-        var seguir = new Button { Content = "Dejar pendiente y seguir" };
+        var seguir = new Button { Content = haySiguiente ? "Dejar pendiente y seguir" : "Cerrar y dejar pendiente" };
         seguir.Click += (_, _) => web.Ventana.Close();
         web.Pie.Children.Add(todas);
         Grid.SetColumn(automatico, 1); web.Pie.Children.Add(automatico);
@@ -40,7 +40,7 @@ public sealed partial class MainWindow
             GuardarAjuste(() => configuracion.PasarWebAutomaticamente = control.PasarAutomaticamente);
         }
         automatico.Checked += CambiarAutomatico; automatico.Unchecked += CambiarAutomatico;
-        web.Aviso.Text = "Desmarcá Pasar automáticamente para revisar, iniciar sesión o votar sin que se cierre la página. El resultado se guarda igualmente.";
+        web.Aviso.Text = haySiguiente ? "Desmarcá Pasar automáticamente para revisar, iniciar sesión o votar sin que se cierre la página. El resultado se guarda igualmente." : "El resultado se guardará en WinGer. Desmarcá Cerrar automáticamente al guardar si querés mantener el informe abierto para revisarlo.";
         web.Ventana.Activate();
         try
         {
@@ -68,8 +68,8 @@ public sealed partial class MainWindow
                 paquete.Detalle = $"Lectura web · {DateTimeOffset.Now:g}\nSHA-256: {hash}\n\n{informe?.Resumen ?? "VirusTotal muestra Item not found: sin informe existente."}\n\n{informe?.Json}\n\nLectura informativa. No habilita la instalación ni verifica el archivo real.";
                 GuardarCache();
                 control.RegistrarResultado();
-                seguir.Content = "Continuar con la siguiente";
-                web.Aviso.Text = paquete.Estado + " · Resultado guardado. Podés revisar o votar; para avanzar usá Continuar o activá Pasar automáticamente.";
+                seguir.Content = haySiguiente ? "Continuar con la siguiente" : "Cerrar y volver a WinGer";
+                web.Aviso.Text = paquete.Estado + (haySiguiente ? " · Resultado guardado. Podés revisar o votar; para avanzar usá Continuar o activá Pasar automáticamente." : " · Resultado guardado. No quedan consultas web. Podés revisar el informe o pulsar Cerrar y volver a WinGer.");
                 if (control.DebeAvanzar) return true;
             }
         }
@@ -85,6 +85,6 @@ public sealed partial class MainWindow
             paquete.Detalle = error.Message;
             throw;
         }
-        finally { web.Cerrar(); }
+        finally { web.Cerrar(); if (!haySiguiente || omitirTodas) Activate(); }
     }
 }
