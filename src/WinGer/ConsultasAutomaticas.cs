@@ -41,13 +41,18 @@ public sealed partial class MainWindow
         var modo = configuracion.ConsultaAutomatica;
         var credencial = modo == "VTAI" ? await ObtenerTokenVtai(token) : "";
         var pendientes = 0;
+        var omitirWeb = false;
         foreach (var paquete in paquetes)
         {
             token.ThrowIfCancellationRequested();
             Modelo.Estado = "Consultando " + modo + " · " + paquete.Nombre;
             try
             {
-                if (modo == "Web experimental") await ConsultarWeb(paquete, token);
+                if (modo == "Web experimental")
+                {
+                    if (omitirWeb) MarcarWebPendiente(paquete);
+                    else omitirWeb = !await ConsultarWeb(paquete, token);
+                }
                 else
                 {
                     await ConsultarVtai(paquete, credencial, token);
@@ -71,6 +76,7 @@ public sealed partial class MainWindow
         var seleccion = paquetes.Where(p => p.Seleccionado).ToArray();
         if (seleccion.Length == 0) throw new InvalidOperationException("Seleccioná aplicaciones o pulsá Seleccionar visibles antes de consultar.");
         var pendientes = 0;
+        var omitirWeb = false;
         foreach (var fuente in fuentes)
         {
             foreach (var paquete in seleccion)
@@ -83,7 +89,10 @@ public sealed partial class MainWindow
                     {
                         case "API": await Gestor.ConsultarPublicadoAsync(paquete, LeerClave(), token); break;
                         case "VTAI": await ConsultarVtai(paquete, await ObtenerTokenVtai(token), token); break;
-                        case "Web": await ConsultarWeb(paquete, token); break;
+                        case "Web":
+                            if (omitirWeb) MarcarWebPendiente(paquete);
+                            else omitirWeb = !await ConsultarWeb(paquete, token);
+                            break;
                     }
                 }
                 catch (OperationCanceledException) { throw; }

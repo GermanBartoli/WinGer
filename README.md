@@ -6,7 +6,7 @@
 <p align="center"><strong>Actualizá Windows con información, a tu ritmo.</strong><br />WinGet · Microsoft Store · VirusTotal</p>
 
 <p align="center">
-  <a href="https://github.com/GermanBartoli/WinGer/releases"><img src="https://img.shields.io/badge/versión-0.3.1-43dfbf?style=flat-square" alt="Vista previa 0.3.1" /></a>
+  <a href="https://github.com/GermanBartoli/WinGer/releases"><img src="https://img.shields.io/badge/versión-0.3.2-43dfbf?style=flat-square" alt="Vista previa 0.3.2" /></a>
   <img src="https://img.shields.io/badge/Windows-x64-0078D4?style=flat-square" alt="Windows x64" />
   <img src="https://img.shields.io/badge/.NET-10-512BD4?style=flat-square" alt=".NET 10" />
   <img src="https://img.shields.io/badge/interfaz-WinUI_3-102a43?style=flat-square" alt="WinUI 3" />
@@ -136,7 +136,11 @@ Consultar un hash no sube el archivo. Las subidas desde el centro VirusTotal req
 
 **Borrar caché** elimina búsquedas e informes reutilizables; conserva ajustes, credenciales, historial e instaladores. Los archivos descargados pueden borrarse cuando no haya operaciones en curso y deberán comprobarse de nuevo antes de instalar.
 
-## Novedades de 0.3.1
+## Novedades de 0.3.2
+
+- **Leer Web** reconoce «Item not found», muestra **Sin informe** en amarillo y continúa automáticamente.
+- **Dejar pendiente y seguir** salta la aplicación actual; **Dejar pendientes todas** evita abrir las lecturas restantes y conserva resultados anteriores.
+
 
 - Suite ampliada ejecutable sin cursor con `./scripts/Probar.ps1` e informe Markdown.
 - Rechazo de estadísticas API incompletas o inválidas, informes con otro hash y cache fechada en el futuro.

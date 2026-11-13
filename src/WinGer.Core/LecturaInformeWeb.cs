@@ -18,9 +18,21 @@ public static class LecturaInformeWeb
           const fecha = roots.flatMap(r => [...r.querySelectorAll('.last-analysis-ago')])[0]?.getAttribute('data-tooltip-text');
           const texto = roots.map(r => r.textContent).join(' ');
           const hash = location.pathname.match(/^\/gui\/file\/([a-f0-9]{64})\/detection$/)?.[1];
-          return {url: location.href, hash: hash && texto.includes(hash) ? hash : null, categorias, fecha};
+          const noEncontrado = categorias.length === 0 && roots.some(r => [...r.querySelectorAll('*')].some(e => e.children.length === 0 && e.textContent.trim() === "Item not found"));
+          return {url: location.href, noEncontrado, hash: hash && texto.includes(hash) ? hash : null, categorias, fecha};
         })()
         """;
+
+    public static bool EsInformeAusente(string json, string hash)
+    {
+        using var documento = JsonDocument.Parse(json);
+        var raiz = documento.RootElement;
+        return raiz.ValueKind == JsonValueKind.Object &&
+            raiz.TryGetProperty("url", out var url) && url.ValueKind == JsonValueKind.String &&
+            url.GetString() == $"https://www.virustotal.com/gui/file/{hash}/detection" &&
+            raiz.TryGetProperty("noEncontrado", out var ausente) && ausente.ValueKind == JsonValueKind.True &&
+            raiz.TryGetProperty("categorias", out var categorias) && categorias.ValueKind == JsonValueKind.Array && categorias.GetArrayLength() == 0;
+    }
 
     public static InformeVirusTotal? Interpretar(string json, string hash)
     {

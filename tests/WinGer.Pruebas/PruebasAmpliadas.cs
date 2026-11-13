@@ -24,6 +24,18 @@ static class PruebasAmpliadas
         var limpio = new InformeVirusTotal(hash, 0, 0, 65, 0, ahora, json);
         try
         {
+            // Ausencia explícita de informe: termina la espera sin confundirla con cero detecciones.
+            var urlWeb = $"https://www.virustotal.com/gui/file/{hash}/detection";
+            string Pagina(string url, object noEncontrado, string[] categorias) => JsonSerializer.Serialize(new { url, noEncontrado, categorias });
+            verificar(LecturaInformeWeb.EsInformeAusente(Pagina(urlWeb, true, []), hash), "Item not found termina la espera web");
+            verificar(!LecturaInformeWeb.EsInformeAusente(Pagina(urlWeb, false, []), hash), "página cargando no equivale a informe ausente");
+            verificar(!LecturaInformeWeb.EsInformeAusente(Pagina(urlWeb, "true", []), hash), "indicador web exige booleano");
+            verificar(!LecturaInformeWeb.EsInformeAusente(Pagina(urlWeb.Replace("virustotal.com", "ejemplo.com"), true, []), hash), "ausencia web exige origen oficial");
+            verificar(!LecturaInformeWeb.EsInformeAusente(Pagina(urlWeb, true, []), new string('b', 64)), "ausencia web exige hash solicitado");
+            verificar(!LecturaInformeWeb.EsInformeAusente(Pagina(urlWeb, true, ["malicious"]), hash), "evidencia de motores no se descarta como ausente");
+            verificar(!LecturaInformeWeb.EsInformeAusente("null", hash), "web todavía vacía permanece pendiente");
+            verificar(LecturaInformeWeb.Interpretar(Pagina(urlWeb, true, []), hash) is null, "sin informe no se interpreta como informe limpio");
+
             // Respuestas estructuradas: una estadística ausente no debe convertirse en cero.
             foreach (var incompleto in new object[] {
                 new { suspicious = 0, undetected = 65, harmless = 0 },
