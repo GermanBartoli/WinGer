@@ -2,6 +2,8 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using WinGer.Core;
+using Windows.Graphics;
 
 namespace WinGer;
 
@@ -16,15 +18,34 @@ public sealed partial class MainWindow
         private readonly StackPanel botones = Fila();
         public bool Cerrada { get; private set; }
 
-        public VentanaWeb(string titulo, Action? alIniciarSesion = null, string? informe = null)
+        public VentanaWeb(Configuracion configuracion, Action guardar, string titulo, Action? alIniciarSesion = null, string? informe = null)
         {
             Ventana.Title = titulo;
             Ventana.AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "WinGer.ico"));
-            var area = DisplayArea.GetFromWindowId(Ventana.AppWindow.Id, DisplayAreaFallback.Primary).WorkArea;
-            Ventana.AppWindow.Resize(new Windows.Graphics.SizeInt32(Math.Min(1280, area.Width - 32), Math.Min(900, area.Height - 32)));
+            var anterior = configuracion.UbicacionWeb;
+            var pantalla = anterior is { Ancho: > 0, Alto: > 0 }
+                ? DisplayArea.GetFromRect(new RectInt32(anterior.X, anterior.Y, anterior.Ancho, anterior.Alto), DisplayAreaFallback.Nearest)
+                : DisplayArea.GetFromWindowId(Ventana.AppWindow.Id, DisplayAreaFallback.Primary);
+            var area = pantalla.WorkArea;
+            var ancho = Math.Min(1280, Math.Max(1, area.Width - 32));
+            var alto = Math.Min(900, Math.Max(1, area.Height - 32));
+            var inicial = anterior is { Ancho: > 0, Alto: > 0 } ? anterior
+                : new UbicacionVentana(area.X + (area.Width - ancho) / 2, area.Y + (area.Height - alto) / 2, ancho, alto);
+            var ubicacion = inicial.Ajustar(area.X, area.Y, area.Width, area.Height);
+            configuracion.UbicacionWeb = ubicacion;
+            Ventana.AppWindow.MoveAndResize(new RectInt32(ubicacion.X, ubicacion.Y, ubicacion.Ancho, ubicacion.Alto));
+            if (ubicacion.Maximizada && Ventana.AppWindow.Presenter is OverlappedPresenter restaurar) restaurar.Maximize();
+            Ventana.AppWindow.Changed += (ventana, _) =>
+            {
+                if (Cerrada || ventana.Presenter is not OverlappedPresenter presentador) return;
+                // Minimizar o maximizar no reemplaza el rectángulo de la ventana normal.
+                ubicacion = ubicacion.Registrar(ventana.Position.X, ventana.Position.Y, ventana.Size.Width, ventana.Size.Height,
+                    presentador.State == OverlappedPresenterState.Maximized, presentador.State == OverlappedPresenterState.Minimized);
+                configuracion.UbicacionWeb = ubicacion;
+            };
             var raiz = new Grid { Padding = new Thickness(16), RowSpacing = 10, Background = (Brush)Application.Current.Resources["ApplicationPageBackgroundThemeBrush"] };
-            foreach (var alto in new[] { GridLength.Auto, GridLength.Auto, new GridLength(1, GridUnitType.Star), GridLength.Auto })
-                raiz.RowDefinitions.Add(new RowDefinition { Height = alto });
+            foreach (var altoFila in new[] { GridLength.Auto, GridLength.Auto, new GridLength(1, GridUnitType.Star), GridLength.Auto })
+                raiz.RowDefinitions.Add(new RowDefinition { Height = altoFila });
             var barra = new StackPanel { Spacing = 6 };
             void Agregar(string texto, Action accion)
             {
@@ -45,7 +66,7 @@ public sealed partial class MainWindow
             Grid.SetRow(Navegador, 2); raiz.Children.Add(Navegador);
             Grid.SetRow(Pie, 3); raiz.Children.Add(Pie);
             Ventana.Content = raiz;
-            Ventana.Closed += (_, _) => Cerrada = true;
+            Ventana.Closed += (_, _) => { Cerrada = true; guardar(); };
         }
 
         public async Task Iniciar(string url, CancellationToken token)
@@ -75,7 +96,7 @@ public sealed partial class MainWindow
 
     private async Task AbrirCuentaVirusTotal(CancellationToken token)
     {
-        var web = new VentanaWeb("VirusTotal · Mi cuenta");
+        var web = new VentanaWeb(configuracion, () => GuardarAjuste(() => { }), "VirusTotal · Mi cuenta");
         var cerrada = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         web.Ventana.Closed += (_, _) => cerrada.TrySetResult();
         using var carga = CancellationTokenSource.CreateLinkedTokenSource(token);

@@ -21,7 +21,7 @@ public sealed partial class MainWindow
         var control = new ControlLecturaWeb(configuracion.PasarWebAutomaticamente);
         var automatico = new CheckBox { Content = "Pasar automáticamente", IsChecked = control.PasarAutomaticamente,
             VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
-        var web = new VentanaWeb("VirusTotal web · " + paquete.Nombre, () => automatico.IsChecked = false, url);
+        var web = new VentanaWeb(configuracion, () => GuardarAjuste(() => { }), "VirusTotal web · " + paquete.Nombre, () => automatico.IsChecked = false, url);
         var omitirTodas = false;
         using var lectura = CancellationTokenSource.CreateLinkedTokenSource(token);
         web.Ventana.Closed += (_, _) => lectura.Cancel();

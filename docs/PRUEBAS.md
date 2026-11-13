@@ -25,7 +25,7 @@ Para incluir además la comprobación real de firma de un archivo temporal sin e
 | Actualización | Formatos, firmas admitidas, vigencia, integridad del archivo y rechazo antes de ejecutar. | No instala software ni prueba UAC/asistentes. |
 | Datos locales | Ajustes, historial, archivos dañados y borrado de cache conservando el resto. | Usa directorios temporales, no tus datos. |
 | Procesos | stdout/stderr, código de salida, ocultación de clave ficticia y cancelación de un hijo. | Solo ejecuta el propio runner y herramientas de desarrollo. |
-| Interfaz | Modelo de estado y eventos; compilación del XAML y presencia de recursos. | No prueba clics, foco, bandeja ni geometría. |
+| Interfaz | Persistencia de posición/tamaño/maximizado, minimización y límites de monitores; modelo de estado y eventos; compilación del XAML y presencia de recursos. | No prueba clics, foco, bandeja ni geometría. |
 | Distribución | EXE, DLL, PRI, XBF y tamaños del ICO. | No garantiza funcionamiento en todas las versiones de Windows. |
 | Microsoft Store | Compilación de su pantalla. | Consulta real e instalación de la tienda no están simuladas por esta suite. |
 

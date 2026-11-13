@@ -146,6 +146,22 @@ static class PruebasAmpliadas
             verificar(new ResultadoConsulta(hash, "Web", limpio, ahora, "Error").Color == "#E8B44D", "web con error no se pinta verde");
             verificar(new ResultadoConsulta(hash, "Web", limpio with { SinDeteccion = 0 }, ahora).Color == "#E8B44D", "web sin motores no se pinta verde");
 
+            var posicion = new UbicacionVentana(110, 105, 1250, 880);
+            verificar(posicion.Ajustar(0, 0, 1920, 1040) == posicion, "navegador conserva posición y tamaño elegidos");
+            var movida = posicion.Registrar(220, 150, 1000, 700, false, false);
+            verificar(movida == new UbicacionVentana(220, 150, 1000, 700), "mover y redimensionar actualiza la posición guardada");
+            var maximizada = movida.Registrar(0, 0, 1920, 1040, true, false);
+            verificar(maximizada == movida with { Maximizada = true }, "maximizar conserva el tamaño normal y guarda el estado");
+            verificar(maximizada.Registrar(-32000, -32000, 0, 0, false, true) == maximizada, "minimizar no guarda coordenadas invisibles");
+            verificar(maximizada.Registrar(220, 150, 1000, 700, false, false) == movida, "restaurar recupera el rectángulo normal");
+            var secundaria = new UbicacionVentana(-1800, 100, 1000, 700);
+            verificar(secundaria.Ajustar(-1920, 0, 1920, 1040) == secundaria, "monitor izquierdo conserva coordenadas negativas válidas");
+            verificar(secundaria.Ajustar(0, 0, 1920, 1040).X == 0, "monitor desconectado devuelve la ventana a una pantalla visible");
+            verificar(new UbicacionVentana(1800, 900, 2000, 1500).Ajustar(0, 0, 1280, 720) == new UbicacionVentana(0, 0, 1280, 720), "pantalla menor adapta posición y tamaño");
+            almacen.Guardar(new Configuracion { UbicacionWeb = maximizada });
+            verificar(new AlmacenLocal(carpeta).LeerConfiguracion().UbicacionWeb == maximizada, "posición, tamaño y maximizado persisten entre reinicios");
+            verificar(new Configuracion().UbicacionWeb is null, "configuraciones anteriores permiten ubicación inicial por defecto");
+
             // Registro VTAI y límites: peticiones interceptadas, sin crear identidades reales.
             var registro = new HttpSimulado(async (solicitud, token) =>
             {

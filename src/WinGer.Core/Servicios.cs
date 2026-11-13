@@ -145,6 +145,7 @@ public sealed class ServicioVirusTotal(HttpClient cliente, AlmacenLocal? almacen
 
 public sealed class Configuracion
 {
+    public UbicacionVentana? UbicacionWeb { get; set; }
     public bool PasarWebAutomaticamente { get; set; } = true;
     public bool RegistroVtaiIntentado { get; set; }
     public bool MinimizarAlCerrar { get; set; }
