@@ -2,6 +2,12 @@ using System.Net;
 using System.Text;
 using WinGer.Core;
 
+if (args.Contains("--hijo-salida"))
+{
+    Console.WriteLine("salida " + Environment.GetEnvironmentVariable("VTCLI_APIKEY"));
+    Console.Error.WriteLine("error"); Environment.ExitCode = 7; return;
+}
+if (args.Contains("--hijo-espera")) { await Task.Delay(Timeout.Infinite); return; }
 var cantidad = 0;
 void Verificar(bool condicion, string nombre)
 {
@@ -17,6 +23,7 @@ async Task Rechazar(Func<Task> accion, string nombre)
     throw new Exception("No se rechazó: " + nombre);
 }
 await PruebasCache.Ejecutar(Verificar);
+await PruebasAmpliadas.Ejecutar(Verificar);
 const string hash = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
 Verificar(Hashes.Validar("  " + hash.ToUpperInvariant() + "  ") == hash, "normalización del hash");
 foreach (var invalido in new[] { "", "--apikey", "../archivo", new string('g', 64), new string('a', 63), hash + "\ncomando" })

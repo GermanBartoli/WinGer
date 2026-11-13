@@ -100,7 +100,7 @@ public sealed class ServicioVirusTotal(HttpClient cliente, AlmacenLocal? almacen
         await turno.WaitAsync(cancelacion);
         try
         {
-            if (informes.TryGetValue(hash, out var guardado) && guardado.Fecha >= DateTimeOffset.UtcNow.AddHours(-1)) return guardado.Informe;
+            if (informes.TryGetValue(hash, out var guardado) && guardado.Fecha <= DateTimeOffset.UtcNow && guardado.Fecha >= DateTimeOffset.UtcNow.AddHours(-1)) return guardado.Informe;
             var espera = proximaConsulta - DateTimeOffset.UtcNow;
             if (espera > TimeSpan.Zero) await Task.Delay(espera, cancelacion);
             proximaConsulta = DateTimeOffset.UtcNow.AddSeconds(16);
@@ -129,9 +129,13 @@ public sealed class ServicioVirusTotal(HttpClient cliente, AlmacenLocal? almacen
     public static InformeVirusTotal Interpretar(string json, string hash)
     {
         using var documento = JsonDocument.Parse(json);
-        var atributos = documento.RootElement.GetProperty("data").GetProperty("attributes");
+        var datos = documento.RootElement.GetProperty("data");
+        if (datos.TryGetProperty("id", out var id) && !string.Equals(id.GetString(), hash, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("El informe API no corresponde al hash solicitado.");
+        var atributos = datos.GetProperty("attributes");
         var estadisticas = atributos.GetProperty("last_analysis_stats");
-        int Numero(string nombre) => estadisticas.TryGetProperty(nombre, out var valor) ? valor.GetInt32() : 0;
+        int Numero(string nombre) => estadisticas.TryGetProperty(nombre, out var valor) && valor.ValueKind == JsonValueKind.Number && valor.TryGetInt32(out var numero) && numero >= 0
+            ? numero : throw new InvalidOperationException("El informe API no contiene estadísticas completas y válidas.");
         DateTimeOffset? fecha = atributos.TryGetProperty("last_analysis_date", out var fechaJson)
             ? DateTimeOffset.FromUnixTimeSeconds(fechaJson.GetInt64()) : null;
         return new(hash, Numero("malicious"), Numero("suspicious"), Numero("undetected"), Numero("harmless"), fecha,
