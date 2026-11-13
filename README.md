@@ -2,7 +2,14 @@
 
 Panel de escritorio para Windows con **C# · .NET 10 · WinUI 3**, orientado a actualizaciones con WinGet y comprobaciones con VirusTotal.
 
-## Versión 0.2.0
+## Versión 0.2.1
+
+- Los bloqueos muestran automáticamente un mensaje con el motivo y sus detalles técnicos; cada tarjeta tiene un botón **Ver detalles / error**.
+- Corrección de lectura del formato real de vt-cli (`_id` y atributos planos), conservando la comprobación del SHA-256.
+- Opción **Actualizar igualmente** ante firma ausente o no comprobable, solo con hash coincidente e informe reciente sin detecciones; la advertencia permanece amarilla al finalizar.
+- Instalación local de MSIX/AppX mediante Windows, que exige su firma y dependencias instaladas. No descarga dependencias ni fuerza el cierre de aplicaciones.
+
+## Funciones
 
 - Caché persistente de búsquedas, selección, filtros, hashes y resultados. Al reabrir se conservan las detecciones y su color, con la etiqueta «Guardado» y la fecha de búsqueda. No hace falta consultar de nuevo para ver el resultado; antes de instalar se verifica el archivo real.
 - **Borrar caché**, en Configuración, limpia la sesión y los informes reutilizables; conserva ajustes, credenciales, historial e instaladores.
@@ -56,9 +63,9 @@ La integración de bandeja utiliza el componente NotifyIcon de Windows Forms; el
 
 Antes de descargar, verde significa que el informe del hash publicado tiene motores analizados, cero detecciones y cero sospechas, y fecha dentro de los últimos 30 días; el archivo todavía no está verificado. **Ver web** abre el navegador; **Leer web · experimental** importa la evidencia visible y mantiene amarillo cuando no hay detecciones. VTAI muestra detecciones y sospechas con su fuente. La instalación sigue requiriendo las comprobaciones con la clave clásica y vt-cli.
 
-Para instalar se admiten MSI/WiX y EXE/Inno/Nullsoft/Burn con firma válida, sin dependencias declaradas ni desinstalación previa requerida. El hash del archivo real debe coincidir con el manifiesto exacto. La aprobación local vence después de una hora. Ningún estado verde representa una garantía de seguridad.
+Para instalar se admiten MSI/WiX y EXE/Inno/Nullsoft/Burn sin dependencias declaradas ni desinstalación previa requerida. MSIX/AppX se instala con [Add-AppxPackage](https://learn.microsoft.com/en-us/powershell/module/appx/add-appxpackage?view=windows-11); Windows comprueba su firma y las dependencias presentes, y rechaza la operación si faltan. El hash del archivo real debe coincidir con el manifiesto exacto. La aprobación local vence después de una hora. Ningún estado verde representa una garantía de seguridad.
 
-Sin firma, sin informe, con un informe antiguo, con dependencias o formatos no implementados, el programa queda pendiente en amarillo. Las detecciones y fallos de integridad impiden la instalación. WinGer no sube instaladores automáticamente ni omite comprobaciones fallidas.
+Una firma ausente o no comprobable permite continuar únicamente después de aceptar la advertencia de ese instalador. Una firma no confiable o con integridad inválida continúa bloqueada. Sin informe, con un informe antiguo, con dependencias no gestionadas o formatos no implementados, el programa queda pendiente en amarillo. Las detecciones y fallos de integridad impiden la instalación. WinGer no sube instaladores automáticamente ni omite comprobaciones fallidas.
 
 Las actualizaciones requieren pulsar el botón y confirmar la selección. Se ejecuta el mismo archivo local bajo un bloqueo de escritura, no una nueva descarga de WinGet. Los EXE pueden mostrar el asistente del fabricante; los MSI se ejecutan sin reinicio automático. Windows puede pedir elevación. Cancelar detiene la cola, no un instalador iniciado. Un fabricante puede descargar componentes adicionales dentro de su propio asistente, fuera del análisis del instalador inicial.
 

@@ -85,9 +85,13 @@ public sealed class ServicioVirusTotal(HttpClient cliente, AlmacenLocal? almacen
             objeto = objeto[0];
         }
         if (objeto.TryGetProperty("data", out var datos)) objeto = datos;
-        if (!objeto.TryGetProperty("id", out var id) || !string.Equals(id.GetString(), hash, StringComparison.OrdinalIgnoreCase))
+        // vt-cli aplana los atributos y usa _id; la API conserva id y attributes.
+        var plano = !objeto.TryGetProperty("attributes", out _);
+        var tieneId = objeto.TryGetProperty(plano ? "_id" : "id", out var id);
+        if (!tieneId || !string.Equals(id.GetString(), hash, StringComparison.OrdinalIgnoreCase) ||
+            (objeto.TryGetProperty("sha256", out var sha256) && !string.Equals(sha256.GetString(), hash, StringComparison.OrdinalIgnoreCase)))
             throw new InvalidOperationException("El informe de vt-cli no corresponde al archivo descargado.");
-        return Interpretar("{\"data\":" + objeto.GetRawText() + "}", hash);
+        return Interpretar(plano ? "{\"data\":{\"attributes\":" + objeto.GetRawText() + "}}" : "{\"data\":" + objeto.GetRawText() + "}", hash);
     }
     public async Task<InformeVirusTotal?> ConsultarAsync(string hash, string clave, CancellationToken cancelacion)
     {

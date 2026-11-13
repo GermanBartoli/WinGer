@@ -52,7 +52,7 @@ public sealed partial class MainWindow
         if (Modelo.Ocupado) { Modelo.Estado = "Esperá a que termine la operación actual."; return; }
         if (seleccion.Length == 0) { Modelo.Estado = "Seleccioná al menos una aplicación."; return; }
         var confirmacion = new ContentDialog { XamlRoot = Raiz.XamlRoot, Title = "Actualizar programas verificados",
-            Content = "Se descargarán los instaladores y solo se ejecutarán los que pasen las comprobaciones de hash, firma e informe de VirusTotal. Esto utiliza tu cuota de API y vt-cli. Windows puede pedir permisos y mostrar asistentes.\n\n" + string.Join("\n", seleccion.Select(p => $"{p.Nombre} → {p.Disponible}")) + "\n\nCancelar detiene la cola, no un instalador que ya empezó.",
+            Content = "Se descargarán y comprobarán los instaladores. Si no se puede validar una firma, verás el motivo y podrás decidir si continuar. Los fallos de hash y las detecciones bloquean la instalación. Esto utiliza tu cuota de API y vt-cli. Windows puede pedir permisos y mostrar asistentes.\n\n" + string.Join("\n", seleccion.Select(p => $"{p.Nombre} → {p.Disponible}")) + "\n\nCancelar detiene la cola, no un instalador que ya empezó.",
             PrimaryButtonText = "Actualizar", CloseButtonText = "Cancelar", DefaultButton = ContentDialogButton.Close };
         if (await confirmacion.ShowAsync() != ContentDialogResult.Primary) return;
         await Ejecutar("Actualización verificada", async token =>
@@ -66,17 +66,47 @@ public sealed partial class MainWindow
                 {
                     if (!PoliticaInstalacion.PuedeInstalar(seleccion[i].Descarga, DateTimeOffset.UtcNow))
                         await Gestor.AnalizarAsync(seleccion[i], clave, token);
-                    if (PoliticaInstalacion.PuedeInstalar(seleccion[i].Descarga, DateTimeOffset.UtcNow))
-                        await Gestor.ActualizarAsync(seleccion[i], clave, token);
-                    else fallos++;
+                    var paquete = seleccion[i];
+                    var aceptarFirma = false;
+                    if (!PoliticaInstalacion.PuedeInstalar(paquete.Descarga, DateTimeOffset.UtcNow))
+                    {
+                        var puedeContinuar = PoliticaInstalacion.PuedeInstalar(paquete.Descarga, DateTimeOffset.UtcNow, true);
+                        aceptarFirma = await MostrarMensajePaquete(paquete, PoliticaInstalacion.Motivo(paquete.Descarga, DateTimeOffset.UtcNow), puedeContinuar);
+                        if (!aceptarFirma)
+                        {
+                            fallos++;
+                            almacen.Registrar("Actualización · " + paquete.Id, "No se continuó · " + paquete.Estado);
+                            continue;
+                        }
+                    }
+                    token.ThrowIfCancellationRequested();
+                    await Gestor.ActualizarAsync(paquete, clave, token, aceptarFirma);
                 }
                 catch (OperationCanceledException) { throw; }
-                catch { fallos++; }
+                catch (Exception error)
+                {
+                    fallos++;
+                    seleccion[i].Detalle = error.Message;
+                    await MostrarMensajePaquete(seleccion[i], error.Message, false);
+                }
                 almacen.Registrar("Actualización · " + seleccion[i].Id, seleccion[i].Estado);
                 if (i < seleccion.Length - 1) await Task.Delay(TimeSpan.FromSeconds(16), token);
             }
             if (fallos > 0) throw new InvalidOperationException($"{fallos} actualizaciones detenidas. Revisá sus detalles.");
         });
+    }
+    private async Task<bool> MostrarMensajePaquete(Paquete paquete, string motivo, bool puedeContinuar)
+    {
+        var contenido = new StackPanel { Spacing = 12 };
+        contenido.Children.Add(new InfoBar { IsOpen = true, IsClosable = false,
+            Severity = puedeContinuar ? InfoBarSeverity.Warning : InfoBarSeverity.Error,
+            Title = puedeContinuar ? "Advertencia de firma" : "No se pudo actualizar", Message = motivo });
+        if (puedeContinuar) contenido.Children.Add(new TextBlock { Text = "Podés continuar con esta advertencia. El hash coincide y el informe no tiene detecciones, pero eso no garantiza seguridad. Windows mantiene sus comprobaciones al instalar paquetes MSIX.", TextWrapping = TextWrapping.Wrap });
+        contenido.Children.Add(new Expander { Header = "Ver detalles técnicos", Content = new TextBlock { Text = paquete.Detalle, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true } });
+        return await new ContentDialog { XamlRoot = Raiz.XamlRoot, Title = paquete.Nombre,
+            Content = new ScrollViewer { MaxHeight = 420, Content = contenido },
+            PrimaryButtonText = puedeContinuar ? "Actualizar igualmente" : "",
+            CloseButtonText = puedeContinuar ? "Cancelar" : "Cerrar", DefaultButton = ContentDialogButton.Close }.ShowAsync() == ContentDialogResult.Primary;
     }
     private async void AnalizarPaquete(object sender, RoutedEventArgs e)
     {

@@ -79,11 +79,29 @@ public static class PoliticaInstalacion
         informe is { Maliciosos: 0, Sospechosos: 0, Fecha: not null } &&
         informe.SinDeteccion + informe.Inofensivos > 0 &&
         informe.Fecha <= ahora.AddMinutes(5) && informe.Fecha >= ahora.AddDays(-30);
-    public static bool PuedeInstalar(DescargaVerificada? descarga, DateTimeOffset ahora) =>
-        descarga is { Firma: "Valid", SinDependencias: true } &&
-        descarga.Tipo is "msi" or "wix" or "exe" or "inno" or "nullsoft" or "burn" &&
-        descarga.Ruta.EndsWith(descarga.Tipo is "msi" or "wix" ? ".msi" : ".exe", StringComparison.OrdinalIgnoreCase) &&
-        descarga.Consultado >= ahora.AddHours(-1) && InformeAprobado(descarga.Informe, ahora);
+    public static bool EsMsix(DescargaVerificada descarga) => descarga.Tipo is "msix" or "appx";
+    public static bool FormatoCompatible(DescargaVerificada descarga) => descarga.Tipo switch
+    {
+        "msix" or "appx" => new[] { ".msix", ".msixbundle", ".appx", ".appxbundle" }.Contains(Path.GetExtension(descarga.Ruta).ToLowerInvariant()),
+        "msi" or "wix" => descarga.Ruta.EndsWith(".msi", StringComparison.OrdinalIgnoreCase),
+        "exe" or "inno" or "nullsoft" or "burn" => descarga.Ruta.EndsWith(".exe", StringComparison.OrdinalIgnoreCase),
+        _ => false
+    };
+    public static bool FirmaConAdvertencia(string firma) => firma is "NotSigned" or "UnknownError" or "NotSupportedFileFormat";
+    public static bool PuedeInstalar(DescargaVerificada? descarga, DateTimeOffset ahora, bool aceptarAdvertenciaFirma = false) =>
+        descarga is { SinDependencias: true } &&
+        (descarga.Firma == "Valid" || (aceptarAdvertenciaFirma && FirmaConAdvertencia(descarga.Firma))) &&
+        FormatoCompatible(descarga) && descarga.Consultado >= ahora.AddHours(-1) && InformeAprobado(descarga.Informe, ahora);
+    public static string Motivo(DescargaVerificada? descarga, DateTimeOffset ahora)
+    {
+        if (descarga is null) return "No hay un instalador verificado. Volvé a pulsar Actualizar.";
+        if (descarga.Informe is { Maliciosos: > 0 } or { Sospechosos: > 0 }) return "VirusTotal informa detecciones o sospechas. Instalación bloqueada.";
+        if (!InformeAprobado(descarga.Informe, ahora)) return "Falta un informe reciente y completo de VirusTotal sin detecciones.";
+        if (!FormatoCompatible(descarga)) return $"El formato {descarga.Tipo} todavía no está admitido.";
+        if (!descarga.SinDependencias) return "El instalador requiere dependencias o una desinstalación previa que WinGer todavía no gestiona.";
+        if (descarga.Consultado < ahora.AddHours(-1)) return "La comprobación venció. Volvé a analizar el instalador.";
+        return $"Windows no pudo validar la firma digital ({descarga.Firma}). No se pudo confirmar el editor mediante esta comprobación.";
+    }
 }
 
 public sealed record DatosManifiesto(string Hash, string Tipo, string Ambito, bool SinDependencias);
@@ -105,7 +123,8 @@ public static class Manifiestos
         if (hash.Length != 64) throw new InvalidOperationException("El manifiesto requiere SHA-256.");
         var tipo = Texto(instalador, "InstallerType"); if (tipo == "") tipo = Texto(raiz, "InstallerType");
         var ambito = Texto(instalador, "Scope"); if (ambito == "") ambito = Texto(raiz, "Scope");
-        var sinDependencias = Nodo(raiz, "Dependencies") is null && Nodo(instalador, "Dependencies") is null;
+        // Windows valida las dependencias ya instaladas de MSIX; no se descargan otras automáticamente.
+        var sinDependencias = tipo is "msix" or "appx" || (Nodo(raiz, "Dependencies") is null && Nodo(instalador, "Dependencies") is null);
         if (Texto(instalador, "UpgradeBehavior") == "uninstallPrevious" || Texto(raiz, "UpgradeBehavior") == "uninstallPrevious") sinDependencias = false;
         return new(hash, tipo, ambito, sinDependencias);
     }
@@ -165,7 +184,7 @@ public sealed class ServicioPaquetes(EjecutorProcesos procesos, ServicioVirusTot
             var informe = await virus.ConsultarAsync(hash, clave, token);
             var descarga = new DescargaVerificada(ruta, hash, datos.Tipo, datos.Ambito, datos.SinDependencias, firma, informe, DateTimeOffset.UtcNow);
             paquete.Descarga = descarga;
-            paquete.Detalle = $"SHA-256: {hash}\nFirma: {firma}\nInstalador: {datos.Tipo}\nDependencias o desinstalación previa: {(datos.SinDependencias ? "no declaradas" : "requieren revisión")}\n\n{informe?.Resumen ?? "Sin informe en VirusTotal. No se subió el archivo."}\n\nArchivo: {ruta}";
+            paquete.Detalle = $"SHA-256: {hash}\nFirma: {firma}\nInstalador: {datos.Tipo}\nDependencias o desinstalación previa: {(datos.Tipo is "msix" or "appx" ? "Windows comprobará las dependencias instaladas" : datos.SinDependencias ? "no declaradas" : "requieren revisión")}\n\n{informe?.Resumen ?? "Sin informe en VirusTotal. No se subió el archivo."}\n\nArchivo: {ruta}";
             if (informe is { Maliciosos: > 0 } or { Sospechosos: > 0 } || firma is "HashMismatch" or "NotTrusted")
             { paquete.Nivel = "rojo"; paquete.Estado = "Bloqueado · detecciones o firma inválida"; }
             else if (PoliticaInstalacion.PuedeInstalar(descarga, DateTimeOffset.UtcNow))
@@ -191,10 +210,10 @@ public sealed class ServicioPaquetes(EjecutorProcesos procesos, ServicioVirusTot
         if (resultado.Codigo != 0) throw new InvalidOperationException("No se pudo comprobar la firma digital: " + resultado.Salida);
         return resultado.Salida.Trim();
     }
-    public async Task ActualizarAsync(Paquete paquete, string clave, CancellationToken token)
+    public async Task ActualizarAsync(Paquete paquete, string clave, CancellationToken token, bool aceptarAdvertenciaFirma = false)
     {
         var descarga = paquete.Descarga;
-        if (!PoliticaInstalacion.PuedeInstalar(descarga, DateTimeOffset.UtcNow)) throw new InvalidOperationException("Primero analizá el instalador. Solo se actualizan los programas aprobados en verde.");
+        if (!PoliticaInstalacion.PuedeInstalar(descarga, DateTimeOffset.UtcNow, aceptarAdvertenciaFirma)) throw new InvalidOperationException(PoliticaInstalacion.Motivo(descarga, DateTimeOffset.UtcNow));
         token.ThrowIfCancellationRequested();
         paquete.Nivel = "gris"; paquete.Estado = "Revalidando instalador…";
         try
@@ -202,28 +221,50 @@ public sealed class ServicioPaquetes(EjecutorProcesos procesos, ServicioVirusTot
             await using var bloqueo = new FileStream(descarga!.Ruta, FileMode.Open, FileAccess.Read, FileShare.Read);
             var hash = Convert.ToHexString(await SHA256.HashDataAsync(bloqueo, token)).ToLowerInvariant();
             if (hash != descarga.Hash) throw new InvalidOperationException("El archivo cambió después del análisis. No se ejecutó.");
-            if (await FirmaAsync(descarga.Ruta, token) != "Valid") throw new InvalidOperationException("La firma dejó de ser válida.");
+            var firmaActual = await FirmaAsync(descarga.Ruta, token);
+            if (firmaActual != "Valid" && !(aceptarAdvertenciaFirma && firmaActual == descarga.Firma && PoliticaInstalacion.FirmaConAdvertencia(firmaActual)))
+                throw new InvalidOperationException("La firma cambió o no permite continuar: " + firmaActual);
             var consulta = await procesos.EjecutarAsync("vt.exe", ["file", hash, "--format", "json"], token, clave);
             if (consulta.Codigo != 0) throw new InvalidOperationException("vt-cli no pudo revalidar el informe. No se ejecutó el instalador.");
             var informe = ServicioVirusTotal.InterpretarCli(consulta.Salida, hash);
             if (!PoliticaInstalacion.InformeAprobado(informe, DateTimeOffset.UtcNow)) throw new InvalidOperationException("El informe actualizado no permite continuar.");
             token.ThrowIfCancellationRequested();
-            var msi = descarga.Tipo is "msi" or "wix";
-            if (msi != descarga.Ruta.EndsWith(".msi", StringComparison.OrdinalIgnoreCase) || (!msi && !descarga.Ruta.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)))
-                throw new InvalidOperationException("El tipo de archivo no corresponde al instalador.");
-            var inicio = new ProcessStartInfo(msi ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "msiexec.exe") : descarga.Ruta)
-            { UseShellExecute = true, Verb = descarga.Ambito == "machine" ? "runas" : "open" };
-            if (msi) inicio.Arguments = $"/i \"{descarga.Ruta}\" /passive /norestart";
-            paquete.Estado = "Instalando · seguí el asistente de Windows";
-            using var instalador = Process.Start(inicio) ?? throw new InvalidOperationException("No se inició el instalador.");
-            // No interrumpir un instalador iniciado: cancelar se aplica al próximo programa.
-            await instalador.WaitForExitAsync(CancellationToken.None);
-            if (instalador.ExitCode is not (0 or 3010)) throw new InvalidOperationException($"El instalador terminó con código {instalador.ExitCode}.");
+            var advertencia = aceptarAdvertenciaFirma ? PoliticaInstalacion.Motivo(descarga, DateTimeOffset.UtcNow) : "";
+            if (PoliticaInstalacion.EsMsix(descarga))
+            {
+                paquete.Estado = "Instalando paquete de Windows…";
+                var powershell = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "WindowsPowerShell", "v1.0", "powershell.exe");
+                var resultado = await procesos.EjecutarAsync(powershell,
+                    ["-NoProfile", "-NonInteractive", "-Command", "[Console]::OutputEncoding=[Text.Encoding]::UTF8; try { Add-AppxPackage -Path $env:WINGER_ARCHIVO -ErrorAction Stop } catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }"],
+                    CancellationToken.None, entorno: new Dictionary<string, string> { ["WINGER_ARCHIVO"] = descarga.Ruta,
+                        ["PSModulePath"] = Path.Combine(Path.GetDirectoryName(powershell)!, "Modules") });
+                if (resultado.Codigo != 0) throw new InvalidOperationException("Windows no pudo instalar el paquete. Si está abierto, cerralo y reintentá.\n" + resultado.Salida);
+            }
+            else
+            {
+                var msi = descarga.Tipo is "msi" or "wix";
+                if (msi != descarga.Ruta.EndsWith(".msi", StringComparison.OrdinalIgnoreCase) || (!msi && !descarga.Ruta.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)))
+                    throw new InvalidOperationException("El tipo de archivo no corresponde al instalador.");
+                var inicio = new ProcessStartInfo(msi ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "msiexec.exe") : descarga.Ruta)
+                { UseShellExecute = true, Verb = descarga.Ambito == "machine" ? "runas" : "open" };
+                if (msi) inicio.Arguments = $"/i \"{descarga.Ruta}\" /passive /norestart";
+                paquete.Estado = "Instalando · seguí el asistente de Windows";
+                using var instalador = Process.Start(inicio) ?? throw new InvalidOperationException("No se inició el instalador.");
+                // No interrumpir un instalador iniciado: cancelar se aplica al próximo programa.
+                await instalador.WaitForExitAsync(CancellationToken.None);
+                if (instalador.ExitCode is not (0 or 3010)) throw new InvalidOperationException($"El instalador terminó con código {instalador.ExitCode}.");
+            }
             var comprobacion = await procesos.EjecutarAsync("winget.exe", ["list", "--id", paquete.Id, "--exact", "--source", "winget", "--disable-interactivity"], CancellationToken.None);
             var instalado = TablaWinGet.Leer(comprobacion.Salida, false).FirstOrDefault(p => p.Id == paquete.Id);
             if (comprobacion.Codigo != 0 || instalado?.Instalada != paquete.Disponible)
             { paquete.Nivel = "amarillo"; paquete.Estado = "Instalador finalizado · versión pendiente de confirmar"; }
             else { paquete.Nivel = "verde"; paquete.Estado = "Actualizado · " + instalado.Instalada; paquete.Seleccionado = false; }
+            if (aceptarAdvertenciaFirma)
+            {
+                paquete.Nivel = "amarillo";
+                paquete.Estado += " · con advertencia de firma";
+                paquete.Detalle = advertencia + "\n\n" + paquete.Detalle;
+            }
             paquete.Descarga = null;
         }
         catch (Exception error)

@@ -103,9 +103,29 @@ Verificar(!PoliticaInstalacion.InformeAprobado(limpio with { Sospechosos = 1 }, 
 Verificar(!PoliticaInstalacion.InformeAprobado(limpio with { Fecha = ahora.AddDays(-31) }, ahora), "informe antiguo exige revisión");
 Verificar(!PoliticaInstalacion.InformeAprobado(limpio with { SinDeteccion = 0 }, ahora), "sin motores analizados no hay aprobación");
 Verificar(!PoliticaInstalacion.PuedeInstalar(descarga with { Consultado = ahora.AddHours(-2) }, ahora), "aprobación vencida debe renovarse");
+foreach (var firmaPendiente in new[] { "NotSigned", "UnknownError", "NotSupportedFileFormat" })
+{
+    Verificar(!PoliticaInstalacion.PuedeInstalar(descarga with { Firma = firmaPendiente }, ahora), "firma pendiente exige aceptación");
+    Verificar(PoliticaInstalacion.PuedeInstalar(descarga with { Firma = firmaPendiente }, ahora, true), "aceptación permite firma pendiente");
+}
+foreach (var firmaBloqueada in new[] { "HashMismatch", "NotTrusted", "OtroEstado" })
+    Verificar(!PoliticaInstalacion.PuedeInstalar(descarga with { Firma = firmaBloqueada }, ahora, true), "aceptación no omite firma bloqueada");
+Verificar(!PoliticaInstalacion.PuedeInstalar(descarga with { Firma = "NotSigned", Informe = limpio with { Maliciosos = 1 } }, ahora, true), "aceptación no omite detecciones");
+Verificar(!PoliticaInstalacion.PuedeInstalar(descarga with { Firma = "NotSigned", Informe = null }, ahora, true), "aceptación no omite informe ausente");
+Verificar(!PoliticaInstalacion.PuedeInstalar(descarga with { Firma = "NotSigned", Consultado = ahora.AddHours(-2) }, ahora, true), "aceptación no omite vencimiento");
+Verificar(PoliticaInstalacion.PuedeInstalar(descarga with { Tipo = "msix", Ruta = "terminal.msix", Firma = "UnknownError" }, ahora, true), "MSIX admite advertencia y conserva validación de Windows");
+Verificar(!PoliticaInstalacion.PuedeInstalar(descarga with { Tipo = "msix", Ruta = "terminal.exe" }, ahora, true), "MSIX rechaza extensión incorrecta");
+Verificar(!PoliticaInstalacion.PuedeInstalar(descarga with { SinDependencias = false }, ahora, true), "aceptación no omite dependencias no gestionadas");
 var jsonCli = "[{\"id\":\"" + hash + "\",\"attributes\":{\"last_analysis_stats\":{\"malicious\":0,\"suspicious\":0,\"undetected\":65,\"harmless\":0},\"last_analysis_date\":" + ahora.ToUnixTimeSeconds() + "}}]";
 Verificar(ServicioVirusTotal.InterpretarCli(jsonCli, hash).SinDeteccion == 65, "informe de vt-cli vinculado al hash");
 await Rechazar(() => { ServicioVirusTotal.InterpretarCli(jsonCli, new string('a', 64)); return Task.CompletedTask; }, "vt-cli con hash distinto se rechaza");
+var atributosCli = "\"last_analysis_stats\":{\"malicious\":0,\"suspicious\":0,\"undetected\":65,\"harmless\":0},\"last_analysis_date\":" + ahora.ToUnixTimeSeconds();
+var planoCli = "{\"_id\":\"" + hash + "\",\"sha256\":\"" + hash + "\"," + atributosCli + "}";
+Verificar(ServicioVirusTotal.InterpretarCli(planoCli, hash).SinDeteccion == 65, "formato real plano de vt-cli");
+Verificar(ServicioVirusTotal.InterpretarCli("[" + planoCli + "]", hash).SinDeteccion == 65, "formato real de vt-cli en lista");
+await Rechazar(() => { ServicioVirusTotal.InterpretarCli(planoCli, new string('a', 64)); return Task.CompletedTask; }, "formato plano con hash distinto bloqueado");
+await Rechazar(() => { ServicioVirusTotal.InterpretarCli(planoCli.Replace("\"_id\"", "\"otro\""), hash); return Task.CompletedTask; }, "formato plano sin identidad bloqueado");
+await Rechazar(() => { ServicioVirusTotal.InterpretarCli(planoCli.Replace("\"sha256\":\"" + hash, "\"sha256\":\"" + new string('a', 64)), hash); return Task.CompletedTask; }, "identidades contradictorias bloqueadas");
 if (args.Contains("--integracion-winget"))
 {
     var real = await ejecutor.EjecutarAsync("winget.exe", ["list", "--upgrade-available", "--source", "winget", "--disable-interactivity"], default);
