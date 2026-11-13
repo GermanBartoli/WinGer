@@ -13,8 +13,18 @@ public sealed partial class MainWindow
         hashActual = cache.Hash;
         if (!string.IsNullOrEmpty(cache.SalidaVirus)) salidaVirus = cache.SalidaVirus;
         paquetes.AddRange(cache.Paquetes);
+        var informesApi = almacen.LeerInformes();
+        var informesVtai = almacen.LeerInformesVtai();
         foreach (var p in paquetes)
         {
+            // Recuperar evidencia anterior por su hash sin inventar fechas ni consumir consultas.
+            if (p.HashPublicado is string hash)
+            {
+                if (p.ResultadoApi is null && informesApi.TryGetValue(hash, out var api))
+                    p.ResultadoApi = new(hash, "API", api.Informe, api.Fecha);
+                if (p.ResultadoVtai is null && informesVtai.TryGetValue(hash, out var ai))
+                    p.ResultadoVtai = new(hash, "VTAI", ai.Informe, ai.Fecha);
+            }
             p.Descarga = null;
             if (p.Estado != "Sin analizar" && !p.Estado.StartsWith("Guardado · "))
             {

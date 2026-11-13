@@ -21,6 +21,7 @@ public sealed partial class MainWindow
             if (anterior is null) continue;
             nuevo.Seleccionado = anterior.Seleccionado; nuevo.HashPublicado = anterior.HashPublicado;
             nuevo.Detalle = anterior.Detalle;
+            nuevo.ConservarConsultas(anterior);
             nuevo.Estado = anterior.Estado; nuevo.Nivel = anterior.Nivel;
         }
         paquetes.Clear(); paquetes.AddRange(encontrados);
@@ -133,7 +134,7 @@ public sealed partial class MainWindow
         try
         {
             await new ContentDialog { XamlRoot = Raiz.XamlRoot, Title = p.Nombre,
-                Content = new ScrollViewer { MaxHeight = 400, Content = new TextBox { Text = p.Detalle, IsReadOnly = true, TextWrapping = TextWrapping.Wrap, AcceptsReturn = true } },
+                Content = new ScrollViewer { MaxHeight = 400, Content = new TextBox { Text = p.DetallesConsultas + "\n\nÚltima operación\n" + p.Detalle, IsReadOnly = true, TextWrapping = TextWrapping.Wrap, AcceptsReturn = true } },
                 CloseButtonText = "Cerrar" }.ShowAsync();
         }
         catch (Exception error) { Modelo.Estado = error.Message; }

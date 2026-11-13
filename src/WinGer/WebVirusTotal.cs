@@ -33,6 +33,7 @@ public sealed partial class MainWindow
                 var json = await navegador.ExecuteScriptAsync(LecturaInformeWeb.Script);
                 var informe = LecturaInformeWeb.Interpretar(json, hash);
                 if (informe is null) continue;
+                paquete.RegistrarConsulta("Web", hash, informe);
                 paquete.Descarga = null;
                 paquete.Nivel = informe.Maliciosos > 0 || informe.Sospechosos > 0 ? "rojo" : "amarillo";
                 paquete.Estado = $"Web · {informe.Maliciosos} detecciones · {informe.Sospechosos} sospechas";
@@ -41,8 +42,9 @@ public sealed partial class MainWindow
             }
             throw new InvalidOperationException("No se pudo leer un informe completo en la web. Queda pendiente; no significa que el archivo sea seguro.");
         }
-        catch
+        catch (Exception error)
         {
+            paquete.RegistrarErrorConsulta("Web", error.Message);
             paquete.Estado = "Web · pendiente de lectura"; paquete.Nivel = "amarillo";
             paquete.Detalle = "Lectura web no completada. Puede requerir verificación, no tener informe o haber cambiado su estructura.";
             throw;

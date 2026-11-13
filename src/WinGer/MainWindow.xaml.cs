@@ -37,6 +37,7 @@ public sealed partial class MainWindow : Window
         RestaurarCache();
         InitializeComponent();
         AppWindow.Resize(new Windows.Graphics.SizeInt32(1180, 800));
+        AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "WinGer.ico"));
         bandeja = new BandejaSistema(this, Salir);
         Closed += (_, _) => bandeja.Dispose();
         AppWindow.Closing += (_, e) =>
@@ -121,9 +122,15 @@ public sealed partial class MainWindow : Window
         Encabezado("Tus actualizaciones", "Buscá actualizaciones y consultá sus hashes automáticamente con VTAI, sin clave clásica. Podés elegir lectura web experimental en Configuración.");
         var acciones = Fila();
         acciones.Children.Add(Boton("Buscar actualizaciones", BuscarPaquetes));
-        acciones.Children.Add(Boton("Consultar selección · API", () => AnalizarGrupo(paquetes.Where(p => p.Seleccionado).ToArray())));
-        acciones.Children.Add(Boton("Actualizar selección…", () => ActualizarGrupo(paquetes.Where(p => p.Seleccionado).ToArray())));
+        acciones.Children.Add(Boton("Actualizar programas seleccionados…", () => ActualizarGrupo(paquetes.Where(p => p.Seleccionado).ToArray())));
         Contenido.Children.Add(acciones);
+        var fuentes = Fila();
+        fuentes.Children.Add(Boton("Consultar API", () => ConsultarFuentesSeleccion(["API"])));
+        fuentes.Children.Add(Boton("Consultar VTAI", () => ConsultarFuentesSeleccion(["VTAI"])));
+        fuentes.Children.Add(Boton("Leer Web", () => ConsultarFuentesSeleccion(["Web"])));
+        fuentes.Children.Add(Boton("Consultar las 3", () => ConsultarFuentesSeleccion(["API", "VTAI", "Web"])));
+        Contenido.Children.Add(fuentes);
+        Contenido.Children.Add(Texto("Consultas sobre las aplicaciones seleccionadas. Consultar las 3 actualiza los resultados, no instala programas. Web puede pedir intervención; API y VTAI pueden reutilizar caché vigente."));
         var buscar = new TextBox { PlaceholderText = "Buscar por nombre o identificador", Text = filtroPaquetes };
         buscar.TextChanged += (_, _) => { filtroPaquetes = buscar.Text; FiltrarPaquetes(); GuardarCache(); };
         Contenido.Children.Add(buscar);

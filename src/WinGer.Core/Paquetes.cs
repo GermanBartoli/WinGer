@@ -8,7 +8,7 @@ using YamlDotNet.RepresentationModel;
 
 namespace WinGer.Core;
 
-public sealed class Paquete : INotifyPropertyChanged
+public sealed partial class Paquete : INotifyPropertyChanged
 {
     public required string Nombre { get; init; }
     public required string Id { get; init; }
@@ -23,7 +23,17 @@ public sealed class Paquete : INotifyPropertyChanged
     public string Color => Nivel switch { "verde" => "#42C98B", "rojo" => "#F27373", "amarillo" => "#E8B44D", _ => "#9AA9BC" };
     [System.Text.Json.Serialization.JsonIgnore]
     public DescargaVerificada? Descarga { get; set; }
-    public string? HashPublicado { get; set; }
+    private string? hashPublicado;
+    public string? HashPublicado
+    {
+        get => hashPublicado;
+        set
+        {
+            if (hashPublicado is not null && !string.Equals(hashPublicado, value, StringComparison.OrdinalIgnoreCase))
+                ResultadoApi = ResultadoVtai = ResultadoWeb = null;
+            hashPublicado = value;
+        }
+    }
     public string Detalle { get; set; } = "Todavía no se descargó ni analizó el instalador.";
     public event PropertyChangedEventHandler? PropertyChanged;
     private void Notificar([CallerMemberName] string? nombre = null) => PropertyChanged?.Invoke(this, new(nombre));
@@ -132,6 +142,16 @@ public static class Manifiestos
 
 public sealed class ServicioPaquetes(EjecutorProcesos procesos, ServicioVirusTotal virus)
 {
+    private async Task<InformeVirusTotal?> ConsultarApiAsync(Paquete paquete, string hash, string clave, CancellationToken token)
+    {
+        try
+        {
+            var informe = await virus.ConsultarAsync(hash, clave, token);
+            paquete.RegistrarConsulta("API", hash, informe);
+            return informe;
+        }
+        catch (Exception error) { paquete.RegistrarErrorConsulta("API", error.Message); throw; }
+    }
     public async Task<string> ObtenerHashAsync(Paquete paquete, CancellationToken token)
     {
         if (paquete.HashPublicado is not null) return paquete.HashPublicado;
@@ -146,13 +166,13 @@ public sealed class ServicioPaquetes(EjecutorProcesos procesos, ServicioVirusTot
         try
         {
             var hash = await ObtenerHashAsync(paquete, token);
-            var informe = await virus.ConsultarAsync(hash, clave, token);
+            var informe = await ConsultarApiAsync(paquete, hash, clave, token);
             paquete.Detalle = $"Hash publicado por WinGet: {hash}\n\n{informe?.Resumen ?? "No hay informe para este hash."}\n\nNo se descargó ni subió el instalador. Antes de instalar se comprobarán el archivo real y su firma.";
             if (informe is { Maliciosos: > 0 } or { Sospechosos: > 0 }) { paquete.Nivel = "rojo"; paquete.Estado = "Informe con detecciones · bloqueado"; }
             else if (PoliticaInstalacion.InformeAprobado(informe, DateTimeOffset.UtcNow)) { paquete.Nivel = "verde"; paquete.Estado = "Informe sin detecciones · archivo aún sin verificar"; }
             else { paquete.Nivel = "amarillo"; paquete.Estado = informe is null ? "Sin informe existente" : "Informe incompleto o antiguo"; }
         }
-        catch (Exception error) { paquete.Nivel = "amarillo"; paquete.Estado = "Consulta pendiente"; paquete.Detalle = error.Message; throw; }
+        catch (Exception error) { paquete.RegistrarErrorConsulta("API", error.Message); paquete.Nivel = "amarillo"; paquete.Estado = "Consulta pendiente"; paquete.Detalle = error.Message; throw; }
     }
     public async Task<List<Paquete>> BuscarAsync(CancellationToken token)
     {
@@ -179,9 +199,10 @@ public sealed class ServicioPaquetes(EjecutorProcesos procesos, ServicioVirusTot
             var hash = await Hashes.CalcularAsync(ruta, token);
             if (!hash.Equals(datos.Hash, StringComparison.OrdinalIgnoreCase))
             { paquete.Nivel = "rojo"; throw new InvalidOperationException("El hash no coincide con WinGet. Instalación bloqueada."); }
+            paquete.HashPublicado = hash;
             paquete.Estado = "Verificando firma y VirusTotal…";
             var firma = await FirmaAsync(ruta, token);
-            var informe = await virus.ConsultarAsync(hash, clave, token);
+            var informe = await ConsultarApiAsync(paquete, hash, clave, token);
             var descarga = new DescargaVerificada(ruta, hash, datos.Tipo, datos.Ambito, datos.SinDependencias, firma, informe, DateTimeOffset.UtcNow);
             paquete.Descarga = descarga;
             paquete.Detalle = $"SHA-256: {hash}\nFirma: {firma}\nInstalador: {datos.Tipo}\nDependencias o desinstalación previa: {(datos.Tipo is "msix" or "appx" ? "Windows comprobará las dependencias instaladas" : datos.SinDependencias ? "no declaradas" : "requieren revisión")}\n\n{informe?.Resumen ?? "Sin informe en VirusTotal. No se subió el archivo."}\n\nArchivo: {ruta}";
@@ -224,10 +245,15 @@ public sealed class ServicioPaquetes(EjecutorProcesos procesos, ServicioVirusTot
             var firmaActual = await FirmaAsync(descarga.Ruta, token);
             if (firmaActual != "Valid" && !(aceptarAdvertenciaFirma && firmaActual == descarga.Firma && PoliticaInstalacion.FirmaConAdvertencia(firmaActual)))
                 throw new InvalidOperationException("La firma cambió o no permite continuar: " + firmaActual);
-            var consulta = await procesos.EjecutarAsync("vt.exe", ["file", hash, "--format", "json"], token, clave);
-            if (consulta.Codigo != 0) throw new InvalidOperationException("vt-cli no pudo revalidar el informe. No se ejecutó el instalador.");
-            var informe = ServicioVirusTotal.InterpretarCli(consulta.Salida, hash);
-            if (!PoliticaInstalacion.InformeAprobado(informe, DateTimeOffset.UtcNow)) throw new InvalidOperationException("El informe actualizado no permite continuar.");
+            try
+            {
+                var consulta = await procesos.EjecutarAsync("vt.exe", ["file", hash, "--format", "json"], token, clave);
+                if (consulta.Codigo != 0) throw new InvalidOperationException("vt-cli no pudo revalidar el informe. No se ejecutó el instalador.");
+                var informe = ServicioVirusTotal.InterpretarCli(consulta.Salida, hash);
+                paquete.RegistrarConsulta("vt-cli", hash, informe);
+                if (!PoliticaInstalacion.InformeAprobado(informe, DateTimeOffset.UtcNow)) throw new InvalidOperationException("El informe actualizado no permite continuar.");
+            }
+            catch (Exception error) { paquete.RegistrarErrorConsulta("vt-cli", error.Message); throw; }
             token.ThrowIfCancellationRequested();
             var advertencia = aceptarAdvertenciaFirma ? PoliticaInstalacion.Motivo(descarga, DateTimeOffset.UtcNow) : "";
             if (PoliticaInstalacion.EsMsix(descarga))

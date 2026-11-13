@@ -12,10 +12,12 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>0.2.2</Version>
+    <Version>0.3.0</Version>
+    <ApplicationIcon>Assets\WinGer.ico</ApplicationIcon>
     <AssemblyName>WinGer</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
+    <Content Include="Assets\WinGer.ico" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <FrameworkReference Include="Microsoft.WindowsDesktop.App.WindowsForms" />
     <Using Remove="System.Windows.Forms" />
     <Using Remove="System.Drawing" />

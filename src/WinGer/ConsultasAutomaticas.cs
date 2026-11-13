@@ -25,6 +25,16 @@ public sealed partial class MainWindow
         credenciales.Add(new PasswordCredential("WinGer.VTAI", "usuario", valor));
         return valor;
     }
+    private async Task ConsultarVtai(Paquete paquete, string credencial, CancellationToken token)
+    {
+        var hash = await Gestor.ObtenerHashAsync(paquete, token);
+        var informe = await Vtai.ConsultarAsync(hash, credencial, token);
+        paquete.RegistrarConsulta("VTAI", hash, informe);
+        paquete.Descarga = null;
+        paquete.Detalle = $"Fuente: VirusTotal AI · consultado {DateTimeOffset.Now:g}\nSHA-256: {hash}\n\n{informe?.Resumen ?? "Sin informe existente."}\n\n{informe?.Json}\n\nEl instalador no se descargó ni se subió. Cero detecciones no garantiza seguridad.";
+        paquete.Nivel = informe is { Maliciosos: > 0 } or { Sospechosos: > 0 } ? "rojo" : PoliticaInstalacion.InformeAprobado(informe, DateTimeOffset.UtcNow) ? "verde" : "amarillo";
+        paquete.Estado = informe is null ? "VTAI · sin informe" : $"VTAI · {informe.Maliciosos} detecciones · {informe.Sospechosos} sospechas";
+    }
     private async Task ConsultarAutomaticamente(CancellationToken token)
     {
         if (configuracion.ConsultaAutomatica == "Desactivado" || paquetes.Count == 0) return;
@@ -40,17 +50,13 @@ public sealed partial class MainWindow
                 if (modo == "Web experimental") await ConsultarWeb(paquete, token);
                 else
                 {
-                    var hash = await Gestor.ObtenerHashAsync(paquete, token);
-                    var informe = await Vtai.ConsultarAsync(hash, credencial, token);
-                    paquete.Descarga = null;
-                    paquete.Detalle = $"Fuente: VirusTotal AI · consultado {DateTimeOffset.Now:g}\nSHA-256: {hash}\n\n{informe?.Resumen ?? "Sin informe existente."}\n\n{informe?.Json}\n\nEl instalador no se descargó ni se subió. Cero detecciones no garantiza seguridad.";
-                    paquete.Nivel = informe is { Maliciosos: > 0 } or { Sospechosos: > 0 } ? "rojo" : PoliticaInstalacion.InformeAprobado(informe, DateTimeOffset.UtcNow) ? "verde" : "amarillo";
-                    paquete.Estado = informe is null ? "VTAI · sin informe" : $"VTAI · {informe.Maliciosos} detecciones · {informe.Sospechosos} sospechas";
+                    await ConsultarVtai(paquete, credencial, token);
                 }
             }
             catch (OperationCanceledException) { throw; }
             catch (Exception error)
             {
+                paquete.RegistrarErrorConsulta(modo == "VTAI" ? "VTAI" : "Web", error.Message);
                 paquete.Nivel = "amarillo"; paquete.Estado = modo + " · pendiente"; paquete.Detalle = error.Message;
                 pendientes++;
                 // Detener la cola ante límites o errores del servicio, sin recurrir a la web para eludir cuotas.
@@ -60,6 +66,41 @@ public sealed partial class MainWindow
         }
         if (pendientes > 0) throw new InvalidOperationException($"Búsqueda guardada; {pendientes} consultas pendientes. Revisá los detalles.");
     }
+    private Task ConsultarFuentesSeleccion(string[] fuentes) => Ejecutar("Consulta de resultados seleccionados", async token =>
+    {
+        var seleccion = paquetes.Where(p => p.Seleccionado).ToArray();
+        if (seleccion.Length == 0) throw new InvalidOperationException("Seleccioná aplicaciones o pulsá Seleccionar visibles antes de consultar.");
+        var pendientes = 0;
+        foreach (var fuente in fuentes)
+        {
+            foreach (var paquete in seleccion)
+            {
+                token.ThrowIfCancellationRequested();
+                Modelo.Estado = $"Consultando {fuente} · {paquete.Nombre}";
+                try
+                {
+                    switch (fuente)
+                    {
+                        case "API": await Gestor.ConsultarPublicadoAsync(paquete, LeerClave(), token); break;
+                        case "VTAI": await ConsultarVtai(paquete, await ObtenerTokenVtai(token), token); break;
+                        case "Web": await ConsultarWeb(paquete, token); break;
+                    }
+                }
+                catch (OperationCanceledException) { throw; }
+                catch (Exception error)
+                {
+                    pendientes++;
+                    paquete.RegistrarErrorConsulta(fuente, error.Message);
+                    paquete.Detalle = error.Message;
+                    // No pasar a otra fuente para eludir una cuota agotada o una indisponibilidad.
+                    if (error.Message.Contains("límite de VirusTotal") || error.Message.StartsWith("VTAI no disponible")) throw;
+                }
+                finally { GuardarCache(); }
+                almacen.Registrar("Consulta " + fuente + " · " + paquete.Id, paquete.DetallesConsultas);
+            }
+        }
+        if (pendientes > 0) throw new InvalidOperationException($"{pendientes} consultas pendientes. Revisá Ver detalles / error; los resultados anteriores se conservaron.");
+    });
     private async void LeerInformeWeb(object sender, RoutedEventArgs e)
     {
         if ((sender as FrameworkElement)?.Tag is Paquete paquete)
