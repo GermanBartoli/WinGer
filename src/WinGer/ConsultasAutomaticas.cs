@@ -71,10 +71,19 @@ public sealed partial class MainWindow
         }
         if (pendientes > 0) throw new InvalidOperationException($"Búsqueda guardada; {pendientes} consultas pendientes. Revisá los detalles.");
     }
-    private Task ConsultarFuentesSeleccion(string[] fuentes) => Ejecutar("Consulta de resultados seleccionados", async token =>
+    private Task ConsultarFuentesSeleccion(string[] fuentes, bool soloApiFaltantes = false) => Ejecutar("Consulta de resultados seleccionados", async token =>
     {
         var seleccion = paquetes.Where(p => p.Seleccionado).ToArray();
         if (seleccion.Length == 0) throw new InvalidOperationException("Seleccioná aplicaciones o pulsá Seleccionar visibles antes de consultar.");
+        if (soloApiFaltantes)
+        {
+            seleccion = seleccion.Where(p => p.NecesitaConsultaApi()).ToArray();
+            if (seleccion.Length == 0)
+            {
+                await new ContentDialog { XamlRoot = Raiz.XamlRoot, Title = "API completa", Content = "Todas las aplicaciones seleccionadas ya tienen un informe API guardado. No se repitió ninguna consulta.", CloseButtonText = "Aceptar" }.ShowAsync();
+                return;
+            }
+        }
         var pendientes = 0;
         var omitirWeb = false;
         foreach (var fuente in fuentes)

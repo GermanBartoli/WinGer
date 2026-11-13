@@ -18,7 +18,7 @@ Para incluir además la comprobación real de firma de un archivo temporal sin e
 
 | Área | Comprobación automática | Límite |
 | --- | --- | --- |
-| API y vt-cli | Respuestas válidas, errores HTTP, estadísticas incompletas, identidad del hash y cache. | No consume la cuenta real. |
+| API y vt-cli | Respuestas válidas, errores HTTP, estadísticas incompletas, identidad del hash, cache y selección de consultas faltantes sin repetir informes existentes. | No consume la cuenta real. |
 | VTAI | Registro simulado, token, respuestas, cuotas, Retry-After y cancelación. | No registra identidades reales. |
 | Tres resultados | Independencia, cambios de versión/hash, colores, avisos, persistencia y notificaciones a la interfaz. | No mide distribución visual. |
 | Web | Interpretación de evidencia, origen, hash, motores, respuestas incompletas y ausencia explícita «Item not found» con origen y hash correctos. | No abre VirusTotal ni resuelve verificaciones. |

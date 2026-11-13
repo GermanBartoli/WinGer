@@ -124,13 +124,17 @@ public sealed partial class MainWindow : Window
         acciones.Children.Add(Boton("Buscar actualizaciones", BuscarPaquetes));
         acciones.Children.Add(Boton("Actualizar programas seleccionados…", () => ActualizarGrupo(paquetes.Where(p => p.Seleccionado).ToArray())));
         Contenido.Children.Add(acciones);
+        var accionesApi = Fila();
+        accionesApi.Children.Add(Boton("Consultar API", () => ConsultarFuentesSeleccion(["API"])));
+        accionesApi.Children.Add(Boton("Consultar API faltantes", () => ConsultarFuentesSeleccion(["API"], soloApiFaltantes: true)));
+        Contenido.Children.Add(accionesApi);
         var fuentes = Fila();
-        fuentes.Children.Add(Boton("Consultar API", () => ConsultarFuentesSeleccion(["API"])));
         fuentes.Children.Add(Boton("Consultar VTAI", () => ConsultarFuentesSeleccion(["VTAI"])));
         fuentes.Children.Add(Boton("Leer Web", () => ConsultarFuentesSeleccion(["Web"])));
         fuentes.Children.Add(Boton("Consultar las 3", () => ConsultarFuentesSeleccion(["API", "VTAI", "Web"])));
         Contenido.Children.Add(fuentes);
         Contenido.Children.Add(Texto("Consultas sobre las aplicaciones seleccionadas. Consultar las 3 actualiza los resultados, no instala programas. Web puede pedir intervención; API y VTAI pueden reutilizar caché vigente."));
+        Contenido.Children.Add(Texto("API faltantes: consulta las seleccionadas sin informe o con error. Conserva los informes existentes, incluso antiguos; Consultar API permite renovarlos. Web amarillo con 0 detecciones indica lectura informativa, no un instalador verificado."));
         var buscar = new TextBox { PlaceholderText = "Buscar por nombre o identificador", Text = filtroPaquetes };
         buscar.TextChanged += (_, _) => { filtroPaquetes = buscar.Text; FiltrarPaquetes(); GuardarCache(); };
         Contenido.Children.Add(buscar);

@@ -93,6 +93,41 @@ static class PruebasAmpliadas
             verificar(new ResultadoConsulta(hash, "Web", limpio, ahora).Color == "#E8B44D", "web sin detecciones permanece informativa");
             verificar(new ResultadoConsulta(hash, "API", limpio with { Sospechosos = 1 }, ahora).Color == "#F27373", "sospechas visibles en rojo");
 
+            // API faltantes: seis informes completos y una aplicación sin consultar.
+            Paquete Tarjeta(string id) => new() { Id = id, Nombre = id, Instalada = "1", Disponible = "2", HashPublicado = hash, Seleccionado = true };
+            var seis = Enumerable.Range(1, 6).Select(i => Tarjeta("Prueba." + i)).ToArray();
+            foreach (var completa in seis) completa.RegistrarConsulta("API", hash, limpio);
+            var sinConsultar = Tarjeta("Prueba.Faltante");
+            var lote = seis.Append(sinConsultar).ToArray();
+            var faltantes = lote.Where(p => p.NecesitaConsultaApi()).ToArray();
+            verificar(faltantes.Length == 1 && ReferenceEquals(faltantes[0], sinConsultar), "API faltantes omite seis informes y selecciona solo el pendiente");
+            var apiFaltantes = new HttpSimulado((_, _) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(json) }));
+            using var httpFaltantes = new HttpClient(apiFaltantes);
+            var gestorFaltantes = new ServicioPaquetes(new(), new ServicioVirusTotal(httpFaltantes));
+            foreach (var pendiente in faltantes) await gestorFaltantes.ConsultarPublicadoAsync(pendiente, "ficticia", default);
+            verificar(apiFaltantes.Llamadas == 1 && lote.All(p => !p.NecesitaConsultaApi()), "API faltantes consulta una vez y una segunda pasada no consulta ninguna");
+            var caso = Tarjeta("Prueba.Caso");
+            caso.RegistrarConsulta("Web", hash, limpio); caso.RegistrarConsulta("VTAI", hash, limpio);
+            verificar(caso.NecesitaConsultaApi(), "Web y VTAI completos no sustituyen un informe API");
+            caso.RegistrarConsulta("API", hash, null);
+            verificar(caso.NecesitaConsultaApi(), "API sin informe sigue pendiente");
+            caso.RegistrarConsulta("API", hash, limpio);
+            caso.RegistrarErrorConsulta("API", "Error simulado");
+            verificar(caso.NecesitaConsultaApi(), "API con último intento fallido se reintenta");
+            caso.ResultadoApi = new(hash, "vt-cli", limpio, ahora.AddDays(-2));
+            verificar(!caso.NecesitaConsultaApi(), "API faltantes conserva informes antiguos y de vt-cli sin renovarlos");
+            caso.ResultadoApi = new(hash, "API", limpio with { Maliciosos = 1 }, ahora);
+            verificar(!caso.NecesitaConsultaApi() && caso.ColorApi == "#F27373", "informe con detecciones se conserva y permanece rojo");
+            caso.ResultadoApi = new(new string('b', 64), "API", limpio, ahora);
+            verificar(caso.NecesitaConsultaApi(), "API de otro hash no cuenta como completa");
+            caso.ResultadoApi = new(hash, "API", limpio with { Hash = new string('b', 64) }, ahora);
+            verificar(caso.NecesitaConsultaApi(), "evidencia API de otro hash no cuenta como completa");
+            caso.ResultadoApi = new(hash, "API", limpio, ahora);
+            caso.HashPublicado = new string('b', 64);
+            verificar(caso.NecesitaConsultaApi(), "cambiar hash exige una nueva consulta API");
+            verificar(new ResultadoConsulta(hash, "Web", limpio, ahora).Resumen.Contains("lectura informativa"), "Web explica su amarillo aun con cero detecciones");
+            verificar(!new ResultadoConsulta(hash, "API", limpio, ahora).Resumen.Contains("lectura informativa"), "aclaración Web no modifica el renglón API");
+
             // Registro VTAI y límites: peticiones interceptadas, sin crear identidades reales.
             var registro = new HttpSimulado(async (solicitud, token) =>
             {

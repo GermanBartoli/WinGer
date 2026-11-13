@@ -6,7 +6,7 @@
 <p align="center"><strong>Actualizá Windows con información, a tu ritmo.</strong><br />WinGet · Microsoft Store · VirusTotal</p>
 
 <p align="center">
-  <a href="https://github.com/GermanBartoli/WinGer/releases"><img src="https://img.shields.io/badge/versión-0.3.2-43dfbf?style=flat-square" alt="Vista previa 0.3.2" /></a>
+  <a href="https://github.com/GermanBartoli/WinGer/releases"><img src="https://img.shields.io/badge/versión-0.3.3-43dfbf?style=flat-square" alt="Vista previa 0.3.3" /></a>
   <img src="https://img.shields.io/badge/Windows-x64-0078D4?style=flat-square" alt="Windows x64" />
   <img src="https://img.shields.io/badge/.NET-10-512BD4?style=flat-square" alt=".NET 10" />
   <img src="https://img.shields.io/badge/interfaz-WinUI_3-102a43?style=flat-square" alt="WinUI 3" />
@@ -135,6 +135,12 @@ La sección **Microsoft Store** consulta actualizaciones e inventario mediante l
 Consultar un hash no sube el archivo. Las subidas desde el centro VirusTotal requieren confirmación porque pueden compartir el contenido con terceros. La clave de vt-cli se entrega en el entorno de su proceso, no en los argumentos ni en el historial.
 
 **Borrar caché** elimina búsquedas e informes reutilizables; conserva ajustes, credenciales, historial e instaladores. Los archivos descargados pueden borrarse cuando no haya operaciones en curso y deberán comprobarse de nuevo antes de instalar.
+
+## Novedades de 0.3.3
+
+- **Consultar API faltantes** actúa solo sobre las seleccionadas sin informe API/vt-cli para su hash actual o con error. Si ya consultaste seis, conserva esas seis y consulta las restantes.
+- No renueva los informes existentes, aunque sean antiguos o tengan detecciones; para renovarlos usá **Consultar API**. Al instalar se siguen comprobando vigencia, hash y firma.
+- El renglón Web aclara **lectura informativa** cuando tiene cero detecciones y sospechas: su amarillo no implica una detección oculta. La lectura web no verifica el instalador.
 
 ## Novedades de 0.3.2
 

@@ -5,13 +5,15 @@ public sealed record ResultadoConsulta(string Hash, string Metodo, InformeVirusT
 {
     [System.Text.Json.Serialization.JsonIgnore]
     public string Resumen => (Informe is null ? Error is null ? "Sin informe" : "N/a" : $"{Informe.Maliciosos} detecciones · {Informe.Sospechosos} sospechas") +
+        (Metodo == "Web" && Informe is { Maliciosos: 0, Sospechosos: 0 } ? " · lectura informativa" : "") +
         $" · {Consultado.ToLocalTime():dd/MM HH:mm}" + (Error is null ? "" : " · último intento falló");
     [System.Text.Json.Serialization.JsonIgnore]
     public string Color => Informe is { Maliciosos: > 0 } or { Sospechosos: > 0 } ? "#F27373" :
         Error is not null || Metodo == "Web" || !PoliticaInstalacion.InformeAprobado(Informe, DateTimeOffset.UtcNow) ? "#E8B44D" : "#42C98B";
     [System.Text.Json.Serialization.JsonIgnore]
     public string Detalle => $"Método: {Metodo}\nSHA-256: {Hash}\nConsulta: {Consultado.ToLocalTime():g}\n{Informe?.Resumen ?? "Sin informe existente."}" +
-        (Error is null ? "" : "\nÚltimo intento: " + Error);
+        (Error is null ? "" : "\nÚltimo intento: " + Error) +
+        (Metodo == "Web" ? "\nAmarillo en Web: lectura informativa; no verifica el instalador ni habilita su instalación. Cero detecciones no garantiza seguridad." : "");
 }
 
 public sealed partial class Paquete
@@ -70,6 +72,13 @@ public sealed partial class Paquete
             default: throw new ArgumentException("Método de consulta desconocido.");
         }
     }
+    // Solo completa resultados faltantes: los informes existentes, incluso antiguos o con detecciones,
+    // se conservan. La consulta normal permite renovarlos y la instalación valida su vigencia aparte.
+    public bool NecesitaConsultaApi() => ResultadoApi is not { Error: null, Informe: not null } resultado ||
+        resultado.Metodo is not ("API" or "vt-cli") || string.IsNullOrEmpty(HashPublicado) ||
+        !string.Equals(resultado.Hash, HashPublicado, StringComparison.OrdinalIgnoreCase) ||
+        !string.Equals(resultado.Informe.Hash, HashPublicado, StringComparison.OrdinalIgnoreCase);
+
     public void ConservarConsultas(Paquete anterior)
     {
         if (Id != anterior.Id || Disponible != anterior.Disponible || Instalada != anterior.Instalada ||
