@@ -1,0 +1,14 @@
+using Microsoft.UI.Xaml;
+
+namespace WinGer;
+
+public partial class App : Application
+{
+    private Window? ventana;
+    public App() => InitializeComponent();
+    protected override void OnLaunched(LaunchActivatedEventArgs args)
+    {
+        ventana = new MainWindow();
+        ventana.Activate();
+    }
+}
