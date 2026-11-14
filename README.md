@@ -6,7 +6,7 @@
 <p align="center"><strong>Actualizá Windows con información, a tu ritmo.</strong><br />WinGet · Microsoft Store · VirusTotal</p>
 
 <p align="center">
-  <a href="https://github.com/GermanBartoli/WinGer/releases"><img src="https://img.shields.io/badge/versión-0.3.12-43dfbf?style=flat-square" alt="Vista previa 0.3.12" /></a>
+  <a href="https://github.com/GermanBartoli/WinGer/releases"><img src="https://img.shields.io/badge/versión-0.4.0-43dfbf?style=flat-square" alt="Vista previa 0.4.0" /></a>
   <img src="https://img.shields.io/badge/Windows-x64-0078D4?style=flat-square" alt="Windows x64" />
   <img src="https://img.shields.io/badge/.NET-10-512BD4?style=flat-square" alt=".NET 10" />
   <img src="https://img.shields.io/badge/interfaz-WinUI_3-102a43?style=flat-square" alt="WinUI 3" />
@@ -49,6 +49,14 @@ WinGer mantiene una única instancia: volver a abrirlo muestra la ventana existe
 La consulta API y la actualización verificada requieren tu clave clásica de VirusTotal en **Configuración**. VTAI usa su propio token, que WinGer registra una sola vez y protege en Windows; también admite importar uno existente. El repositorio no incluye credenciales.
 
 Para actualizar WinGer, cerralo desde **bandeja → Salir** y reemplazá los archivos de su carpeta. La configuración vive fuera de esa carpeta. El ejecutable de esta vista previa no tiene firma de editor; cada release incluye el SHA-256 del ZIP.
+
+## Explorar aplicaciones y reparar PC
+
+**Explorar aplicaciones** incluye una selección de 23 aplicaciones conocidas por categoría y búsqueda en WinGet. No representa un ranking de descargas. **Descargar y comprobar** obtiene el instalador, comprueba su SHA-256 contra el manifiesto y muestra su firma. No ejecuta el instalador ni consulta automáticamente VirusTotal: el botón correspondiente abre el informe del hash descargado.
+
+**Reparar PC → Comandos de Windows** ofrece diez acciones de diagnóstico y reparación: DISM, SFC, CHKDSK, configuración de red, caché DNS e información del sistema. Cada acción describe su efecto y pide confirmación antes de abrir la consola; solicita elevación cuando corresponde. La consola conserva el resultado para leerlo. Para reparar archivos de Windows, ejecutá DISM RestoreHealth antes de SFC scannow. No se ejecutan reparaciones automáticamente.
+
+**Mis herramientas** muestra los accesos de `C:\Cosas\Reparar PC`, con búsqueda e iconos del Shell de Windows. Abre los accesos originales conservando sus opciones; reconoce también los ejecutables de las carpetas Everything y ProcessExplorer. **Actualizar accesos** vuelve a leer la carpeta. La extracción de iconos usa un hilo STA con COM inicializado para resolver accesos `.lnk` y `.url` sin bloquear la interfaz. Si Windows no proporciona un icono, se muestra uno genérico.
 
 ## Historial y aplicaciones pendientes
 

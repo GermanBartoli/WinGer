@@ -55,7 +55,7 @@ public sealed partial class MainWindow
     });
     private async Task ActualizarGrupo(Paquete[] seleccion)
     {
-        if (Modelo.Ocupado) { Modelo.Estado = "Esperá a que termine la operación actual."; return; }
+        if (Modelo.Ocupado || reparacionEnCurso) { Modelo.Estado = "Esperá a que termine la operación actual."; return; }
         if (seleccion.Length == 0) { Modelo.Estado = "Seleccioná al menos una aplicación."; return; }
         var confirmacion = new ContentDialog { XamlRoot = Raiz.XamlRoot, Title = "Actualizar programas verificados",
             Content = "Se descargarán y comprobarán los instaladores. Si no se puede validar una firma, verás el motivo y podrás decidir si continuar. Los fallos de hash y las detecciones bloquean la instalación. Esto utiliza tu cuota de API y vt-cli. Windows puede pedir permisos y mostrar asistentes.\n\n" + string.Join("\n", seleccion.Select(p => $"{p.Nombre} → {p.Disponible}")) + "\n\nCancelar detiene la cola, no un instalador que ya empezó.",

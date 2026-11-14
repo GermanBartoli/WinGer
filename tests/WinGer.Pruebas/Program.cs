@@ -23,6 +23,7 @@ async Task Rechazar(Func<Task> accion, string nombre)
     throw new Exception("No se rechazó: " + nombre);
 }
 await PruebasCache.Ejecutar(Verificar);
+await PruebasCatalogo.Ejecutar(Verificar, args.Contains("--integracion-catalogo"));
 await PruebasDependencias.Ejecutar(Verificar, args.Contains("--integracion-dependencias"));
 await PruebasAmpliadas.Ejecutar(Verificar);
 const string hash = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";

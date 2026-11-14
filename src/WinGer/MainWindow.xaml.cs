@@ -62,6 +62,8 @@ public sealed partial class MainWindow : Window
         if (args.IsSettingsSelected) MostrarConfiguracion();
         else switch ((args.SelectedItem as NavigationViewItem)?.Tag?.ToString())
         {
+            case "explorar": MostrarExplorar(); break;
+            case "reparar": MostrarReparar(); break;
             case "store": MostrarStore(); break;
             case "virus": MostrarVirus(); break;
             case "historial": MostrarHistorial(); break;
@@ -100,7 +102,7 @@ public sealed partial class MainWindow : Window
     }
     private async Task Ejecutar(string nombre, Func<CancellationToken, Task> accion)
     {
-        if (Modelo.Ocupado) { Modelo.Estado = "Ya hay una operación en curso. Esperá o cancelala."; return; }
+        if (Modelo.Ocupado || reparacionEnCurso) { Modelo.Estado = "Ya hay una operación en curso. Esperá o cancelala."; return; }
         Modelo.Ocupado = true;
         Modelo.Estado = nombre + "…";
         using var actual = new CancellationTokenSource();
