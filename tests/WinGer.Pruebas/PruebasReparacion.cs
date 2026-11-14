@@ -8,6 +8,7 @@ static class PruebasReparacion
         var sfc = ComandosReparacion.Todos.Single(c => c.Argumentos == "/verifyonly");
         var chkdsk = ComandosReparacion.Todos.Single(c => c.Programa == "chkdsk.exe");
         verificar(ResultadosReparacion.Interpretar(chkdsk, ahora, ahora, 9, "Ya se estß ejecutando un examen en esta unidad.").Nivel == "amarillo", "CHKDSK diferencia un examen simultáneo de un fallo del disco");
+        verificar(ResultadosReparacion.Interpretar(chkdsk, ahora, ahora, 0, "Se examinó el sistema de archivos sin encontrar problemas.\r\nNo se requieren más acciones.").Nivel == "verde", "CHKDSK reconoce el resultado correcto de Windows en español");
         var antiguo = "Iniciando examen. Este proceso tardarß alg·n tiempo.\r\n\r\nSe complet¾ la comprobaci¾n de 1%.\r\nSe complet¾ la comprobaci¾n de 1%.\r\nSe complet¾ la comprobaci¾n de 100%.\r\nProtecci¾n de recursos de Windows no encontr¾ ninguna infracci¾n\r\n\r\nde integridad.";
         var corregido = ResultadosReparacion.Interpretar(sfc, ahora, ahora, 0, antiguo);
         verificar(corregido.Nivel == "verde" && corregido.Salida.Contains("tardará algún") && corregido.Salida.Contains("100%") && !corregido.Salida.Contains("1%") && !corregido.Salida.Contains('¾'), "SFC histórico recupera acentos, compacta progreso y reconoce integridad entre líneas");

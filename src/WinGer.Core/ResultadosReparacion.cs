@@ -31,7 +31,7 @@ public static class ResultadosReparacion
             { nivel = "verde"; mensaje = "Análisis correcto. Windows no recomienda limpiar el almacén de componentes."; }
             else mensaje = "Análisis completado. Revisá en el detalle si Windows recomienda una limpieza.";
         }
-        else if (Contiene("no component store corruption detected", "no se detectó ningún daño", "no se detectaron daños", "did not find any integrity violations", "no encontró ninguna infracción de integridad", "found no problems", "no encontró problemas")) { nivel = "verde"; mensaje = "Comprobación completada: no se detectaron problemas."; }
+        else if (Contiene("no component store corruption detected", "no se detectó ningún daño", "no se detectaron daños", "did not find any integrity violations", "no encontró ninguna infracción de integridad", "found no problems", "no encontró problemas", "se examinó el sistema de archivos sin encontrar problemas")) { nivel = "verde"; mensaje = "Comprobación completada: no se detectaron problemas."; }
         else if (Contiene("successfully repaired", "reparó correctamente", "restore operation completed successfully", "operación de restauración se completó correctamente")) { nivel = "verde"; mensaje = "Reparación completada correctamente."; }
         else if (comando.Programa is "ipconfig.exe" or "systeminfo.exe") { nivel = "verde"; mensaje = "Comando completado correctamente."; }
         if (Contiene("acceso denegado", "access is denied")) { nivel = "rojo"; mensaje = "Windows denegó el acceso. Volvé a ejecutar y aceptá los permisos de administrador."; }
