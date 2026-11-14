@@ -24,7 +24,7 @@ static class PruebasCatalogo
             var inicio = ComandosReparacion.CrearInicio(comando);
             var script = Encoding.Unicode.GetString(Convert.FromBase64String(inicio.ArgumentList.Last()));
             verificar(Path.IsPathFullyQualified(inicio.FileName) && inicio.UseShellExecute && inicio.Verb == (comando.Administrador ? "runas" : "open"), "lanzador usa ruta del sistema y elevación prevista: " + comando.Nombre);
-            verificar(script.Contains(comando.Argumentos) && script.Contains("$LASTEXITCODE") && script.Contains("Read-Host"), "consola conserva resultado y código: " + comando.Nombre);
+            verificar(script.Contains(comando.Argumentos) && script.Contains("proceso.ExitCode") && script.Contains("Read-Host"), "consola conserva resultado y código: " + comando.Nombre);
         }
         rechazo = false;
         try { ComandosReparacion.CrearInicio(ComandosReparacion.Todos[0] with { Argumentos = "/Online; comando-inyectado" }); } catch (InvalidOperationException) { rechazo = true; }

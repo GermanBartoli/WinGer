@@ -20,17 +20,65 @@ public static class ComandosReparacion
         new("Windows · Información del sistema", "systeminfo.exe", "", "Muestra versión de Windows, memoria, equipo y revisiones instaladas.", false, "\uE946")
     };
     public static bool EsConocido(ComandoReparacion comando) => Todos.Contains(comando);
-    public static System.Diagnostics.ProcessStartInfo CrearInicio(ComandoReparacion comando, string? archivoResultado = null)
+    public static System.Diagnostics.ProcessStartInfo CrearInicio(ComandoReparacion comando, string? archivoResultado = null, bool cerrarAutomaticamente = false)
     {
         if (!EsConocido(comando)) throw new InvalidOperationException("Comando no reconocido.");
         var ruta = Path.Combine(Environment.SystemDirectory, comando.Programa);
         // Solo parámetros del catálogo fijo, sin evaluar texto introducido en la interfaz.
         var destino = archivoResultado?.Replace("'", "''");
         var guardar = destino is null ? "" : "$resultado=@{ Codigo=$codigo; Salida=($salida -join [Environment]::NewLine); Fin=[DateTimeOffset]::Now.ToString('o') }; $json=$resultado | ConvertTo-Json; [IO.File]::WriteAllText('" + destino + ".tmp', $json, [Text.UTF8Encoding]::new($false)); Move-Item -LiteralPath '" + destino + ".tmp' -Destination '" + destino + "' -Force; ";
-        var script = "$ErrorActionPreference='Continue'; $salida=@(); $codigo=1; try { & '" + ruta.Replace("'", "''") + "' " + comando.Argumentos + " 2>&1 | ForEach-Object { $linea=$_.ToString(); $salida += $linea; Write-Host $linea }; $codigo=$LASTEXITCODE } catch { $salida += $_.ToString(); Write-Host $_ }; " + guardar + "Write-Host ('Código de salida: ' + $codigo); Read-Host 'Revisá el resultado y pulsá Entrar para cerrar'; exit $codigo";
+        var script = "$ErrorActionPreference='Stop'; Write-Host 'Preparando " + comando.Nombre + "...'; $salida=@(); $codigo=1; try { Add-Type -TypeDefinition @'\n" + CapturaConsola + "\n'@; $codigo=[ConsolaReparacion]::Ejecutar('" + ruta.Replace("'", "''") + "', '" + comando.Argumentos + "', " + (comando.Programa == "sfc.exe" ? "1200" : comando.Programa == "chkdsk.exe" ? "0" : "-1") + "); $salida=@([ConsolaReparacion]::Salida) } catch { $salida += $_.ToString(); Write-Host $_ }; " + guardar + "Write-Host ('Código de salida: ' + $codigo); " + (cerrarAutomaticamente ? "" : "Read-Host 'Revisá el resultado y pulsá Entrar para cerrar'; ") + "exit $codigo";
         var inicio = new System.Diagnostics.ProcessStartInfo(Path.Combine(Environment.SystemDirectory, @"WindowsPowerShell\v1.0\powershell.exe")) { UseShellExecute = true, Verb = comando.Administrador ? "runas" : "open" };
         inicio.ArgumentList.Add("-NoProfile"); inicio.ArgumentList.Add("-EncodedCommand");
         inicio.ArgumentList.Add(Convert.ToBase64String(System.Text.Encoding.Unicode.GetBytes(script)));
         return inicio;
     }
+
+    // El proceso conserva la entrada de la consola y se drenan ambas salidas en paralelo.
+    private const string CapturaConsola = """
+        using System;
+        using System.Diagnostics;
+        using System.IO;
+        using System.Text;
+        using System.Threading.Tasks;
+        using System.Runtime.InteropServices;
+        public static class ConsolaReparacion {
+            [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] static extern IntPtr CreateFile(string nombre, uint acceso, uint compartir, IntPtr seguridad, uint apertura, uint atributos, IntPtr plantilla);
+            [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr handle);
+            [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] static extern bool WriteConsole(IntPtr handle, string texto, uint longitud, out uint escritos, IntPtr reservado);
+            [DllImport("kernel32.dll")] static extern bool GetConsoleMode(IntPtr handle, out uint modo);
+            [DllImport("kernel32.dll")] static extern bool SetConsoleMode(IntPtr handle, uint modo);
+            [DllImport("kernel32.dll")] static extern uint GetOEMCP();
+            static readonly StringBuilder texto = new StringBuilder();
+            static IntPtr pantalla;
+            public static string Salida { get { return texto.ToString(); } }
+            static async Task Copiar(StreamReader lector) {
+                var buffer = new char[256]; int cantidad;
+                while ((cantidad = await lector.ReadAsync(buffer, 0, buffer.Length)) > 0) {
+                    lock (texto) {
+                        texto.Append(buffer, 0, cantidad); uint escritos;
+                        if (!WriteConsole(pantalla, new string(buffer, 0, cantidad), (uint)cantidad, out escritos, IntPtr.Zero))
+                            Console.Write(buffer, 0, cantidad);
+                    }
+                }
+            }
+            public static int Ejecutar(string ruta, string argumentos, int pagina) {
+                // PowerShell puede redirigir sus handles estándar aun teniendo una consola visible.
+                uint modo; var entrada = CreateFile("CONIN$", 0xC0000000, 3, IntPtr.Zero, 3, 0, IntPtr.Zero);
+                pantalla = CreateFile("CONOUT$", 0xC0000000, 3, IntPtr.Zero, 3, 0, IntPtr.Zero);
+                if (GetConsoleMode(entrada, out modo)) SetConsoleMode(entrada, (modo | 0x80) & ~0x40u);
+                var codificacion = pagina == 0 ? Encoding.Default : Encoding.GetEncoding(pagina == -1 ? (int)GetOEMCP() : pagina);
+                var inicio = new ProcessStartInfo(ruta, argumentos) {
+                    UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true,
+                    StandardOutputEncoding = codificacion, StandardErrorEncoding = codificacion
+                };
+                try {
+                    using (var proceso = Process.Start(inicio)) {
+                        var salida = Copiar(proceso.StandardOutput); var error = Copiar(proceso.StandardError);
+                        proceso.WaitForExit(); Task.WaitAll(salida, error); return proceso.ExitCode;
+                    }
+                } finally { CloseHandle(entrada); CloseHandle(pantalla); }
+            }
+        }
+        """;
 }

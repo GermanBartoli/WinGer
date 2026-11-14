@@ -21,6 +21,9 @@ public sealed partial class MainWindow
     {
         var contenido = new StackPanel { Spacing = 14, Margin = new Thickness(0,16,0,0) };
         contenido.Children.Add(Texto("Para reparar archivos de Windows: ejecutá primero DISM · Reparar imagen y después SFC · Reparar archivos de sistema. Cada comando abre una consola con su progreso y resultado. Los que modifican Windows piden permisos de administrador."));
+        var cierre = new CheckBox { Content = "Cerrar la consola automáticamente al terminar", IsChecked = configuracion.CerrarConsolaReparacion };
+        cierre.Click += (_, _) => GuardarAjuste(() => configuracion.CerrarConsolaReparacion = cierre.IsChecked == true);
+        contenido.Children.Add(cierre);
         foreach (var seccion in new[] { "Análisis y comprobaciones", "Reparación y mantenimiento", "Información del equipo" })
         {
             contenido.Children.Add(new TextBlock { Text = seccion, FontSize = 22 });
@@ -37,12 +40,21 @@ public sealed partial class MainWindow
                 var marco = MarcoHerramienta(cuerpo);
                 if (almacen.LeerReparaciones().TryGetValue(comando.Comando, out var resultado))
                 {
+                    resultado = ResultadosReparacion.Interpretar(comando, resultado.Inicio, resultado.Fin, resultado.Codigo, resultado.Salida);
                     cuerpo.Children.Add(Texto(resultado.Mensaje));
                     cuerpo.Children.Add(Texto($"Última ejecución: {resultado.Inicio.ToLocalTime():g} · Duración: {(resultado.Fin - resultado.Inicio).TotalSeconds:N0} s · Código: {resultado.Codigo?.ToString() ?? "sin confirmar"}"));
                     var color = resultado.Nivel == "verde" ? Windows.UI.Color.FromArgb(255, 46, 160, 90) : resultado.Nivel == "rojo" ? Windows.UI.Color.FromArgb(255, 220, 65, 65) : Windows.UI.Color.FromArgb(255, 210, 160, 35);
                     marco.BorderBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(color); marco.BorderThickness = new Thickness(2);
                     marco.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(35, color.R, color.G, color.B));
-                    cuerpo.Children.Add(Boton("Ver último resultado", async () => { await new ContentDialog { XamlRoot = Raiz.XamlRoot, Title = comando.Nombre, CloseButtonText = "Cerrar", Content = new ScrollViewer { MaxHeight = 420, Content = new TextBlock { Text = resultado.Salida, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true } } }.ShowAsync(); }));
+                    cuerpo.Children.Add(Boton("Ver último resultado", async () => {
+                        var detalle = new StackPanel { Spacing = 16 };
+                        detalle.Children.Add(Texto(resultado.Mensaje));
+                        detalle.Children.Add(new TextBlock { Text = resultado.Salida, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true, FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Consolas") });
+                        var dialogo = new ContentDialog { XamlRoot = Raiz.XamlRoot, Title = comando.Nombre, CloseButtonText = "Cerrar", Content = new ScrollViewer { MaxHeight = Math.Max(200, Raiz.ActualHeight - 230), Content = detalle }, HorizontalContentAlignment = HorizontalAlignment.Stretch };
+                        dialogo.Resources["ContentDialogMaxWidth"] = 860d;
+                        detalle.Width = Math.Max(240, Math.Min(780, Raiz.ActualWidth - 100));
+                        await dialogo.ShowAsync();
+                    }));
                 }
                 else cuerpo.Children.Add(Texto("Todavía no se ejecutó desde esta versión de WinGer."));
                 tarjetas.Children.Add(marco);
@@ -67,7 +79,7 @@ public sealed partial class MainWindow
         try
         {
             Directory.CreateDirectory(carpeta);
-            var inicio = ComandosReparacion.CrearInicio(comando, archivo);
+            var inicio = ComandosReparacion.CrearInicio(comando, archivo, configuracion.CerrarConsolaReparacion);
             using var proceso = Process.Start(inicio) ?? throw new InvalidOperationException("No se pudo abrir la consola.");
             Modelo.Estado = "En curso: " + comando.Nombre + ". Revisá la consola.";
             almacen.Registrar("Reparación · " + comando.Nombre, "Iniciada por el usuario");
