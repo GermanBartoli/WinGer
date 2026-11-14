@@ -6,7 +6,7 @@
 <p align="center"><strong>Actualizá Windows con información, a tu ritmo.</strong><br />WinGet · Microsoft Store · VirusTotal</p>
 
 <p align="center">
-  <a href="https://github.com/GermanBartoli/WinGer/releases"><img src="https://img.shields.io/badge/versión-0.4.0-43dfbf?style=flat-square" alt="Vista previa 0.4.0" /></a>
+  <a href="https://github.com/GermanBartoli/WinGer/releases"><img src="https://img.shields.io/badge/versión-0.4.1-43dfbf?style=flat-square" alt="Vista previa 0.4.1" /></a>
   <img src="https://img.shields.io/badge/Windows-x64-0078D4?style=flat-square" alt="Windows x64" />
   <img src="https://img.shields.io/badge/.NET-10-512BD4?style=flat-square" alt=".NET 10" />
   <img src="https://img.shields.io/badge/interfaz-WinUI_3-102a43?style=flat-square" alt="WinUI 3" />
@@ -56,7 +56,7 @@ Para actualizar WinGer, cerralo desde **bandeja → Salir** y reemplazá los arc
 
 **Reparar PC → Comandos de Windows** ofrece diez acciones de diagnóstico y reparación: DISM, SFC, CHKDSK, configuración de red, caché DNS e información del sistema. Cada acción describe su efecto y pide confirmación antes de abrir la consola; solicita elevación cuando corresponde. La consola conserva el resultado para leerlo. Para reparar archivos de Windows, ejecutá DISM RestoreHealth antes de SFC scannow. No se ejecutan reparaciones automáticamente.
 
-**Mis herramientas** muestra los accesos de `C:\Cosas\Reparar PC`, con búsqueda e iconos del Shell de Windows. Abre los accesos originales conservando sus opciones; reconoce también los ejecutables de las carpetas Everything y ProcessExplorer. **Actualizar accesos** vuelve a leer la carpeta. La extracción de iconos usa un hilo STA con COM inicializado para resolver accesos `.lnk` y `.url` sin bloquear la interfaz. Si Windows no proporciona un icono, se muestra uno genérico.
+**Mis herramientas** muestra los accesos de `C:\Cosas\Reparar PC`, con búsqueda e iconos del Shell de Windows. Abre los accesos originales conservando sus opciones; reconoce también los ejecutables de las carpetas Everything y ProcessExplorer. **Actualizar accesos** vuelve a leer la carpeta. La extracción de iconos serializa las consultas al Shell y usa hilos STA con COM inicializado para resolver accesos `.lnk` y `.url` sin bloquear la interfaz. Si Windows no proporciona un icono, se muestra uno genérico.
 
 ## Historial y aplicaciones pendientes
 

@@ -46,7 +46,7 @@ public sealed partial class MainWindow
             if (cargado) return; cargado = true;
             try
             {
-                var datos = await cargar(); if (datos is null) return;
+                var datos = await cargar(); if (datos is null) { cargado = false; return; }
                 using var flujo = new Windows.Storage.Streams.InMemoryRandomAccessStream();
                 using (var escritor = new Windows.Storage.Streams.DataWriter(flujo)) { escritor.WriteBytes(datos); await escritor.StoreAsync(); escritor.DetachStream(); }
                 flujo.Seek(0); var bitmap = new BitmapImage(); await bitmap.SetSourceAsync(flujo);
@@ -65,16 +65,23 @@ public sealed partial class MainWindow
     [DllImport("ole32.dll")]
     private static extern void CoUninitialize();
 
+    private static readonly object bloqueoIconosShell = new();
+
     private static Task<byte[]?> CargarIconoArchivo(string ruta)
     {
         var resultado = new TaskCompletionSource<byte[]?>(TaskCreationOptions.RunContinuationsAsynchronously);
         // El Shell necesita COM inicializado para resolver los iconos de accesos directos.
         var hilo = new Thread(() =>
         {
-            var inicializado = CoInitializeEx(IntPtr.Zero, 2) >= 0;
-            try { resultado.SetResult(LeerIconoArchivo(ruta)); }
-            catch (Exception error) { resultado.SetException(error); }
-            finally { if (inicializado) CoUninitialize(); }
+            // Las consultas simultáneas del Shell pueden devolver un HICON nulo.
+            // Serializar la extracción, manteniendo libre el hilo de la interfaz.
+            lock (bloqueoIconosShell)
+            {
+                var inicializado = CoInitializeEx(IntPtr.Zero, 2) >= 0;
+                try { resultado.SetResult(LeerIconoArchivo(ruta)); }
+                catch (Exception error) { resultado.SetException(error); }
+                finally { if (inicializado) CoUninitialize(); }
+            }
         }) { IsBackground = true };
         hilo.SetApartmentState(ApartmentState.STA);
         hilo.Start();
