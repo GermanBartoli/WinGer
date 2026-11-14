@@ -20,12 +20,14 @@ public static class ComandosReparacion
         new("Windows · Información del sistema", "systeminfo.exe", "", "Muestra versión de Windows, memoria, equipo y revisiones instaladas.", false, "\uE946")
     };
     public static bool EsConocido(ComandoReparacion comando) => Todos.Contains(comando);
-    public static System.Diagnostics.ProcessStartInfo CrearInicio(ComandoReparacion comando)
+    public static System.Diagnostics.ProcessStartInfo CrearInicio(ComandoReparacion comando, string? archivoResultado = null)
     {
         if (!EsConocido(comando)) throw new InvalidOperationException("Comando no reconocido.");
         var ruta = Path.Combine(Environment.SystemDirectory, comando.Programa);
         // Solo parámetros del catálogo fijo, sin evaluar texto introducido en la interfaz.
-        var script = "$ErrorActionPreference='Stop'; try { & '" + ruta.Replace("'", "''") + "' " + comando.Argumentos + "; $codigo=$LASTEXITCODE; Write-Host ('Código de salida: ' + $codigo); Read-Host 'Revisá el resultado y pulsá Entrar para cerrar'; exit $codigo } catch { Write-Host $_; Read-Host 'Pulsá Entrar para cerrar'; exit 1 }";
+        var destino = archivoResultado?.Replace("'", "''");
+        var guardar = destino is null ? "" : "$resultado=@{ Codigo=$codigo; Salida=($salida -join [Environment]::NewLine); Fin=[DateTimeOffset]::Now.ToString('o') }; $json=$resultado | ConvertTo-Json; [IO.File]::WriteAllText('" + destino + ".tmp', $json, [Text.UTF8Encoding]::new($false)); Move-Item -LiteralPath '" + destino + ".tmp' -Destination '" + destino + "' -Force; ";
+        var script = "$ErrorActionPreference='Continue'; $salida=@(); $codigo=1; try { & '" + ruta.Replace("'", "''") + "' " + comando.Argumentos + " 2>&1 | ForEach-Object { $linea=$_.ToString(); $salida += $linea; Write-Host $linea }; $codigo=$LASTEXITCODE } catch { $salida += $_.ToString(); Write-Host $_ }; " + guardar + "Write-Host ('Código de salida: ' + $codigo); Read-Host 'Revisá el resultado y pulsá Entrar para cerrar'; exit $codigo";
         var inicio = new System.Diagnostics.ProcessStartInfo(Path.Combine(Environment.SystemDirectory, @"WindowsPowerShell\v1.0\powershell.exe")) { UseShellExecute = true, Verb = comando.Administrador ? "runas" : "open" };
         inicio.ArgumentList.Add("-NoProfile"); inicio.ArgumentList.Add("-EncodedCommand");
         inicio.ArgumentList.Add(Convert.ToBase64String(System.Text.Encoding.Unicode.GetBytes(script)));

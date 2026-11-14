@@ -12,28 +12,44 @@ public sealed partial class MainWindow
     private void MostrarReparar()
     {
         Encabezado("Reparar PC", "Diagnóstico y reparación de Windows, junto con tus herramientas instaladas.");
-        var pestanas = new TabView { IsAddTabButtonVisible = false, CanDragTabs = false, CanReorderTabs = false };
-        pestanas.TabItems.Add(new TabViewItem { Header = "Comandos de Windows", IsClosable = false, IconSource = new SymbolIconSource { Symbol = Symbol.Repair }, Content = CrearComandos() });
-        pestanas.TabItems.Add(new TabViewItem { Header = "Mis herramientas", IsClosable = false, IconSource = new SymbolIconSource { Symbol = Symbol.OpenFile }, Content = CrearHerramientas() });
+        var pestanas = new Pivot();
+        pestanas.Items.Add(new PivotItem { Header = "Comandos de Windows", Content = CrearComandos() });
+        pestanas.Items.Add(new PivotItem { Header = "Mis herramientas", Content = CrearHerramientas() });
         Contenido.Children.Add(pestanas);
     }
     private StackPanel CrearComandos()
     {
         var contenido = new StackPanel { Spacing = 14, Margin = new Thickness(0,16,0,0) };
         contenido.Children.Add(Texto("Para reparar archivos de Windows: ejecutá primero DISM · Reparar imagen y después SFC · Reparar archivos de sistema. Cada comando abre una consola con su progreso y resultado. Los que modifican Windows piden permisos de administrador."));
-        var tarjetas = new PanelAjustable { AnchoElemento = 340 };
-        foreach (var comando in ComandosReparacion.Todos)
+        foreach (var seccion in new[] { "Análisis y comprobaciones", "Reparación y mantenimiento", "Información del equipo" })
         {
-            var cuerpo = new StackPanel { Spacing = 10 };
-            var cabecera = Fila(); cabecera.Children.Add(new FontIcon { Glyph = comando.Icono, FontSize = 28 });
-            cabecera.Children.Add(new TextBlock { Text = comando.Nombre, MaxWidth = 240, TextWrapping = TextWrapping.Wrap, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
-            cuerpo.Children.Add(cabecera); cuerpo.Children.Add(Texto(comando.Descripcion));
-            cuerpo.Children.Add(new TextBlock { Text = comando.Comando, IsTextSelectionEnabled = true, TextWrapping = TextWrapping.Wrap, FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Consolas") });
-            cuerpo.Children.Add(Texto(comando.Administrador ? "Requiere administrador" : "Consulta sin elevación"));
-            cuerpo.Children.Add(Boton("Ejecutar…", () => EjecutarReparacion(comando)));
-            tarjetas.Children.Add(MarcoHerramienta(cuerpo));
+            contenido.Children.Add(new TextBlock { Text = seccion, FontSize = 22 });
+            var tarjetas = new PanelAjustable { AnchoElemento = 340 };
+            foreach (var comando in ComandosReparacion.Todos.Where(c => ResultadosReparacion.Seccion(c) == seccion))
+            {
+                var cuerpo = new StackPanel { Spacing = 10 };
+                var cabecera = Fila(); cabecera.Children.Add(new FontIcon { Glyph = comando.Icono, FontSize = 28 });
+                cabecera.Children.Add(new TextBlock { Text = comando.Nombre, MaxWidth = 240, TextWrapping = TextWrapping.Wrap, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+                cuerpo.Children.Add(cabecera); cuerpo.Children.Add(Texto(comando.Descripcion));
+                cuerpo.Children.Add(new TextBlock { Text = comando.Comando, IsTextSelectionEnabled = true, TextWrapping = TextWrapping.Wrap, FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Consolas") });
+                cuerpo.Children.Add(Texto(comando.Administrador ? "Requiere administrador" : "Consulta sin elevación"));
+                cuerpo.Children.Add(Boton("Ejecutar…", () => EjecutarReparacion(comando)));
+                var marco = MarcoHerramienta(cuerpo);
+                if (almacen.LeerReparaciones().TryGetValue(comando.Comando, out var resultado))
+                {
+                    cuerpo.Children.Add(Texto(resultado.Mensaje));
+                    cuerpo.Children.Add(Texto($"Última ejecución: {resultado.Inicio.ToLocalTime():g} · Duración: {(resultado.Fin - resultado.Inicio).TotalSeconds:N0} s · Código: {resultado.Codigo?.ToString() ?? "sin confirmar"}"));
+                    var color = resultado.Nivel == "verde" ? Windows.UI.Color.FromArgb(255, 46, 160, 90) : resultado.Nivel == "rojo" ? Windows.UI.Color.FromArgb(255, 220, 65, 65) : Windows.UI.Color.FromArgb(255, 210, 160, 35);
+                    marco.BorderBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(color); marco.BorderThickness = new Thickness(2);
+                    marco.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(35, color.R, color.G, color.B));
+                    cuerpo.Children.Add(Boton("Ver último resultado", async () => { await new ContentDialog { XamlRoot = Raiz.XamlRoot, Title = comando.Nombre, CloseButtonText = "Cerrar", Content = new ScrollViewer { MaxHeight = 420, Content = new TextBlock { Text = resultado.Salida, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true } } }.ShowAsync(); }));
+                }
+                else cuerpo.Children.Add(Texto("Todavía no se ejecutó desde esta versión de WinGer."));
+                tarjetas.Children.Add(marco);
+            }
+            contenido.Children.Add(tarjetas);
         }
-        contenido.Children.Add(tarjetas); return contenido;
+        return contenido;
     }
     private async Task EjecutarReparacion(ComandoReparacion comando)
     {
@@ -45,16 +61,31 @@ public sealed partial class MainWindow
         if (await confirmacion.ShowAsync() != ContentDialogResult.Primary) return;
         if (reparacionEnCurso || Modelo.Ocupado) return;
         reparacionEnCurso = true;
+        var fechaInicio = DateTimeOffset.Now;
+        var carpeta = Path.Combine(almacen.RutaDatos, "Reparaciones");
+        var archivo = Path.Combine(carpeta, Guid.NewGuid().ToString("N") + ".json");
         try
         {
-            var inicio = ComandosReparacion.CrearInicio(comando);
+            Directory.CreateDirectory(carpeta);
+            var inicio = ComandosReparacion.CrearInicio(comando, archivo);
             using var proceso = Process.Start(inicio) ?? throw new InvalidOperationException("No se pudo abrir la consola.");
             Modelo.Estado = "En curso: " + comando.Nombre + ". Revisá la consola.";
             almacen.Registrar("Reparación · " + comando.Nombre, "Iniciada por el usuario");
             // Sin timeout ni cancelación forzada: DISM y SFC pueden tardar considerablemente.
-            await proceso.WaitForExitAsync();
-            Modelo.Estado = comando.Nombre + " · consola finalizada con código " + proceso.ExitCode + ". Consultá el resultado mostrado; el código solo no confirma una reparación.";
-            almacen.Registrar("Reparación · " + comando.Nombre, "Consola finalizada · código " + proceso.ExitCode);
+            while (!proceso.HasExited && !File.Exists(archivo)) await Task.Delay(500);
+            int? codigo = null; var salida = "La consola se cerró sin dejar un resultado completo."; var fin = DateTimeOffset.Now;
+            if (File.Exists(archivo))
+            {
+                using var documento = System.Text.Json.JsonDocument.Parse(await File.ReadAllTextAsync(archivo));
+                var raiz = documento.RootElement; codigo = raiz.GetProperty("Codigo").GetInt32(); salida = raiz.GetProperty("Salida").GetString() ?? "";
+                fin = DateTimeOffset.Parse(raiz.GetProperty("Fin").GetString()!, System.Globalization.CultureInfo.InvariantCulture);
+            }
+            var resultado = ResultadosReparacion.Interpretar(comando, fechaInicio, fin, codigo, salida);
+            almacen.GuardarReparacion(comando, resultado);
+            File.Delete(archivo);
+            Modelo.Estado = comando.Nombre + " · " + resultado.Mensaje;
+            almacen.Registrar("Reparación · " + comando.Nombre, resultado.Mensaje);
+            if (Navegacion.SelectedItem is NavigationViewItem seleccion && seleccion.Tag?.ToString() == "reparar") MostrarReparar();
         }
         finally { reparacionEnCurso = false; }
     }

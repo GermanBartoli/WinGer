@@ -6,7 +6,7 @@
 <p align="center"><strong>Actualizá Windows con información, a tu ritmo.</strong><br />WinGet · Microsoft Store · VirusTotal</p>
 
 <p align="center">
-  <a href="https://github.com/GermanBartoli/WinGer/releases"><img src="https://img.shields.io/badge/versión-0.4.1-43dfbf?style=flat-square" alt="Vista previa 0.4.1" /></a>
+  <a href="https://github.com/GermanBartoli/WinGer/releases"><img src="https://img.shields.io/badge/versión-0.5.0-43dfbf?style=flat-square" alt="Vista previa 0.5.0" /></a>
   <img src="https://img.shields.io/badge/Windows-x64-0078D4?style=flat-square" alt="Windows x64" />
   <img src="https://img.shields.io/badge/.NET-10-512BD4?style=flat-square" alt=".NET 10" />
   <img src="https://img.shields.io/badge/interfaz-WinUI_3-102a43?style=flat-square" alt="WinUI 3" />
@@ -270,3 +270,9 @@ Creado y mantenido por **[Germán Bartoli](https://github.com/GermanBartoli)**, 
     Hecho por Germán Bartoli · Ver portfolio
   </a>
 </p>
+
+## Resultados de reparación y backup (0.5.0)
+
+Reparar PC agrupa análisis, reparación e información. Cada comando conserva su última fecha, duración, código y salida completa. Verde indica un éxito reconocido, amarillo pide revisar el resultado o reiniciar y rojo indica un error. Una salida desconocida no se presenta como un diagnóstico correcto. El resultado aparece al terminar el comando, antes de cerrar la consola. Los resultados anteriores a esta versión no incluyen salida recuperable.
+
+Configuración muestra la carpeta de datos (%LOCALAPPDATA%\WinGer) y permite abrirla. Crear backup guarda configuración, caché e historial en un único JSON; Importar restaura ese archivo tras confirmar el reemplazo. No incluye credenciales de Windows, sesiones web, iconos regenerables ni instaladores. Borrar caché conserva ajustes e historial de reparaciones. Los ajustes continúan guardándose automáticamente.

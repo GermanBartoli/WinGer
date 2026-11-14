@@ -258,6 +258,7 @@ public sealed partial class MainWindow : Window
     private void MostrarConfiguracion()
     {
         Encabezado("Configuración", "Personalizá WinGer. Los ajustes se guardan para tu usuario de Windows.");
+        MostrarBackup();
         var minimizar = new ToggleSwitch { Header = "Al cerrar con la cruz", OnContent = "Mantener en la bandeja del sistema", OffContent = "Cerrar WinGer", IsOn = configuracion.MinimizarAlCerrar };
         minimizar.Toggled += (_, _) => GuardarAjuste(() => configuracion.MinimizarAlCerrar = minimizar.IsOn);
         Contenido.Children.Add(minimizar);

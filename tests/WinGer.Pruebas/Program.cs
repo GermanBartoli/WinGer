@@ -23,6 +23,7 @@ async Task Rechazar(Func<Task> accion, string nombre)
     throw new Exception("No se rechazó: " + nombre);
 }
 await PruebasCache.Ejecutar(Verificar);
+await PruebasReparacion.Ejecutar(Verificar);
 await PruebasCatalogo.Ejecutar(Verificar, args.Contains("--integracion-catalogo"));
 await PruebasDependencias.Ejecutar(Verificar, args.Contains("--integracion-dependencias"));
 await PruebasAmpliadas.Ejecutar(Verificar);
