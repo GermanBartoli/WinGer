@@ -234,6 +234,17 @@ static class PruebasAmpliadas
             var salida = await ejecutor.EjecutarAsync("dotnet", [ensamblado, "--hijo-salida"], default, "secreto-ficticio");
             verificar(salida.Codigo == 7 && salida.Salida.Contains("salida") && salida.Salida.Contains("error"), "captura stdout, stderr y código de salida");
             verificar(!salida.Salida.Contains("secreto-ficticio") && salida.Salida.Contains("[clave protegida]"), "el ejecutor oculta credenciales en salida");
+            var avances = new List<string>();
+            var consulta = await ejecutor.EjecutarAsync("dotnet", [ensamblado, "--hijo-entrada"], default,
+                entrada: "n\n", progreso: new ProgresoProceso(texto => avances.Add(texto)));
+            verificar(consulta.Codigo == 0 && consulta.Salida.Contains("Consulta sin instalar"), "entrada negativa y EOF evitan la instalación y la espera de consola");
+            verificar(avances.Count > 0 && avances[^1].Contains("Consulta sin instalar"), "la salida se comunica durante la consulta");
+            try
+            {
+                await ejecutor.EjecutarAsync("dotnet", [ensamblado, "--hijo-espera"], default, tiempoEspera: TimeSpan.FromMilliseconds(500));
+                throw new Exception("No se interrumpió el proceso al vencer el plazo.");
+            }
+            catch (TimeoutException) { verificar(true, "el tiempo agotado se distingue de cancelar manualmente"); }
             using (var cancelarHijo = new CancellationTokenSource(TimeSpan.FromMilliseconds(500)))
                 await Rechazar(async () => { await ejecutor.EjecutarAsync("dotnet", [ensamblado, "--hijo-espera"], cancelarHijo.Token); }, "cancelación termina el proceso auxiliar");
         }
@@ -246,4 +257,9 @@ sealed class HttpSimulado(Func<HttpRequestMessage, CancellationToken, Task<HttpR
     public int Llamadas { get; private set; }
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage solicitud, CancellationToken token)
     { Llamadas++; return responder(solicitud, token); }
+}
+
+sealed class ProgresoProceso(Action<string> informar) : IProgress<string>
+{
+    public void Report(string valor) => informar(valor);
 }

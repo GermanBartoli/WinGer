@@ -7,6 +7,23 @@ if (args.Contains("--hijo-salida"))
     Console.WriteLine("salida " + Environment.GetEnvironmentVariable("VTCLI_APIKEY"));
     Console.Error.WriteLine("error"); Environment.ExitCode = 7; return;
 }
+if (args.Contains("--hijo-entrada"))
+{
+    Console.Write("¿Instalar? ");
+    var respuesta = await Console.In.ReadLineAsync();
+    var fin = await Console.In.ReadToEndAsync();
+    Console.WriteLine(respuesta == "n" && fin.Length == 0 ? "Consulta sin instalar" : "Entrada incorrecta");
+    return;
+}
+if (args.Contains("--integracion-store"))
+{
+    var resultado = await new EjecutorProcesos().EjecutarAsync("store.exe", ["updates"], default, entrada: "n\n");
+    Console.WriteLine(resultado.Salida);
+    if (resultado.Codigo != 0 || !resultado.Salida.Contains("Updates available") && !resultado.Salida.Contains("No updates found"))
+        throw new Exception("Microsoft Store no devolvió un resultado de actualizaciones reconocible.");
+    Console.WriteLine("Correcto: consulta real de Store terminada sin solicitar instalación");
+    return;
+}
 if (args.Contains("--hijo-espera")) { await Task.Delay(Timeout.Infinite); return; }
 var cantidad = 0;
 void Verificar(bool condicion, string nombre)
@@ -22,6 +39,10 @@ async Task Rechazar(Func<Task> accion, string nombre)
     { Verificar(true, nombre); return; }
     throw new Exception("No se rechazó: " + nombre);
 }
+var salidaStore = "Updates available (1 found)\nAplicación pendiente\nWould you like to install the 1 Store update(s) now? [y/n] (y):\nFailed to read input in non-interactive mode.";
+Verificar(ConsultaMicrosoftStore.Presentar(new(0, salidaStore)).Contains("No se instalaron actualizaciones.") && !ConsultaMicrosoftStore.Presentar(new(0, salidaStore)).Contains("[y/n]"), "Store aclara la instalación omitida después de una consulta correcta");
+Verificar(ConsultaMicrosoftStore.Presentar(new(1, salidaStore)) == salidaStore && ConsultaMicrosoftStore.Presentar(new(0, "Failed to read input in non-interactive mode.")) == "Failed to read input in non-interactive mode.", "Store conserva los errores sin resultado confirmado");
+Verificar(ComandosReparacion.Todos.All(c => ComandosReparacion.CrearInicio(c).Verb == (c.Administrador ? "runas" : "open")), "reparaciones solicitan elevación por acción desde WinGer sin administrador");
 await PruebasCache.Ejecutar(Verificar);
 await PruebasReparacion.Ejecutar(Verificar);
 await PruebasCatalogo.Ejecutar(Verificar, args.Contains("--integracion-catalogo"));

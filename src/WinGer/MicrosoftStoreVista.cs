@@ -1,3 +1,4 @@
+using WinGer.Core;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
@@ -45,12 +46,17 @@ public sealed partial class MainWindow
 
     private Task ConsultarStore(string comando, InfoBar aviso, TextBox salida) => Ejecutar("Consulta de Microsoft Store", async token =>
     {
-        aviso.Message = "Consultando Microsoft Store… Puede tardar unos minutos.";
+        estadoStore = "Consultando Microsoft Store… Puede tardar unos minutos. No se instalarán actualizaciones.";
+        aviso.Message = estadoStore;
+        salidaStore = "Iniciando consulta…";
+        salida.Text = salidaStore;
         aviso.Severity = InfoBarSeverity.Informational;
         try
         {
-            var respuesta = await procesos.EjecutarAsync("store.exe", [comando], token);
-            salidaStore = respuesta.Salida;
+            var progreso = new Progress<string>(texto => { salidaStore = texto; salida.Text = texto; });
+            // Store puede pedir instalar al terminar la búsqueda: la consulta siempre rechaza esa acción.
+            var respuesta = await procesos.EjecutarAsync("store.exe", [comando], token, entrada: "n\n", progreso: progreso);
+            salidaStore = ConsultaMicrosoftStore.Presentar(respuesta);
             salida.Text = salidaStore;
             if (respuesta.Codigo != 0) throw new InvalidOperationException("Microsoft Store no pudo completar la consulta. Revisá la respuesta de la tienda que aparece debajo.");
             estadoStore = comando == "installed"
@@ -62,7 +68,13 @@ public sealed partial class MainWindow
         }
         catch (OperationCanceledException)
         {
-            estadoStore = "Consulta cancelada o tiempo de espera agotado. Podés volver a intentarlo o abrir Microsoft Store.";
+            estadoStore = "Consulta cancelada. La salida parcial no confirma que la búsqueda haya terminado.";
+            nivelStore = InfoBarSeverity.Warning;
+            throw;
+        }
+        catch (TimeoutException)
+        {
+            estadoStore = "Microsoft Store no terminó la consulta en 5 minutos. Se conserva la salida parcial; podés reintentar o abrir Store.";
             nivelStore = InfoBarSeverity.Warning;
             throw;
         }

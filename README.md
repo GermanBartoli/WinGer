@@ -6,7 +6,7 @@
 <p align="center"><strong>Actualizá Windows con información, a tu ritmo.</strong><br />WinGet · Microsoft Store · VirusTotal</p>
 
 <p align="center">
-  <a href="https://github.com/GermanBartoli/WinGer/releases"><img src="https://img.shields.io/badge/versión-0.5.0-43dfbf?style=flat-square" alt="Vista previa 0.5.0" /></a>
+  <a href="https://github.com/GermanBartoli/WinGer/releases"><img src="https://img.shields.io/badge/versión-0.5.1-43dfbf?style=flat-square" alt="Vista previa 0.5.1" /></a>
   <img src="https://img.shields.io/badge/Windows-x64-0078D4?style=flat-square" alt="Windows x64" />
   <img src="https://img.shields.io/badge/.NET-10-512BD4?style=flat-square" alt=".NET 10" />
   <img src="https://img.shields.io/badge/interfaz-WinUI_3-102a43?style=flat-square" alt="WinUI 3" />
@@ -142,6 +142,10 @@ Los errores se muestran automáticamente con su motivo. Siempre podés volver a 
 ## Microsoft Store
 
 La sección **Microsoft Store** consulta actualizaciones e inventario mediante la herramienta oficial [Store CLI](https://blogs.windows.com/windowsdeveloper/2026/02/11/enhanced-developer-tools-on-the-microsoft-store/).
+
+La consulta muestra la salida mientras trabaja y ejecuta Store con entrada redirigida y respuesta negativa a la instalación. Cuando Store devuelve la lista correctamente pero omite su confirmación interactiva, WinGer aclara que no se instalaron actualizaciones. Los errores sin resultado confirmado se conservan. Si la consulta vence o se cancela, conserva la salida parcial y distingue ambos motivos.
+
+Abrí WinGer sin forzar «Ejecutar como administrador» para consultar la tienda con tu sesión normal. Las reparaciones y las instalaciones de ámbito equipo solicitan elevación por separado cuando corresponde.
 
 **Abrir Store para actualizar** lleva a la página de descargas de la tienda. La instalación se completa allí; después podés volver a consultar desde WinGer. Esta sección no analiza esos archivos con VirusTotal ni consume tu cuota API. Si `store.exe` no está disponible, aparece el motivo y se conserva el acceso a la tienda.
 

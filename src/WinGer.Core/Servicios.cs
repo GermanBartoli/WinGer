@@ -11,12 +11,14 @@ public sealed record ResultadoProceso(int Codigo, string Salida);
 public sealed class EjecutorProcesos
 {
     public async Task<ResultadoProceso> EjecutarAsync(string programa, IEnumerable<string> argumentos,
-        CancellationToken cancelacion, string? clave = null, IReadOnlyDictionary<string, string>? entorno = null)
+        CancellationToken cancelacion, string? clave = null, IReadOnlyDictionary<string, string>? entorno = null,
+        string? entrada = null, IProgress<string>? progreso = null, TimeSpan? tiempoEspera = null)
     {
         var inicio = new ProcessStartInfo(programa)
         {
             UseShellExecute = false, CreateNoWindow = true,
             RedirectStandardOutput = true, RedirectStandardError = true,
+            RedirectStandardInput = entrada is not null,
             StandardOutputEncoding = System.Text.Encoding.UTF8,
             StandardErrorEncoding = System.Text.Encoding.UTF8
         };
@@ -29,19 +31,49 @@ public sealed class EjecutorProcesos
         catch (System.ComponentModel.Win32Exception)
         { throw new InvalidOperationException($"No se pudo iniciar {programa}. Comprobá que esté instalado y disponible en PATH."); }
         using var limite = CancellationTokenSource.CreateLinkedTokenSource(cancelacion);
-        limite.CancelAfter(TimeSpan.FromMinutes(5));
-        var salida = proceso.StandardOutput.ReadToEndAsync();
-        var error = proceso.StandardError.ReadToEndAsync();
+        limite.CancelAfter(tiempoEspera ?? TimeSpan.FromMinutes(5));
+        var acumulada = new System.Text.StringBuilder();
+        var bloqueo = new object();
+        string Proteger(string texto) => string.IsNullOrEmpty(clave) ? texto : texto.Replace(clave, "[clave protegida]", StringComparison.Ordinal);
+        async Task<string> Leer(StreamReader lector)
+        {
+            var resultado = new System.Text.StringBuilder();
+            var buffer = new char[2048];
+            int leidos;
+            while ((leidos = await lector.ReadAsync(buffer)) > 0)
+            {
+                resultado.Append(buffer, 0, leidos);
+                lock (bloqueo)
+                {
+                    // No emitir fragmentos de una credencial antes de poder ocultarla completa.
+                    if (progreso is not null && clave is null)
+                    {
+                        acumulada.Append(buffer, 0, leidos);
+                        progreso.Report(acumulada.ToString());
+                    }
+                }
+            }
+            return resultado.ToString();
+        }
+        var salida = Leer(proceso.StandardOutput);
+        var error = Leer(proceso.StandardError);
+        if (entrada is not null)
+        {
+            try { await proceso.StandardInput.WriteAsync(entrada); proceso.StandardInput.Close(); }
+            catch (IOException) { /* El programa puede terminar sin consumir la entrada. */ }
+        }
         try { await proceso.WaitForExitAsync(limite.Token); }
         catch (OperationCanceledException)
         {
             if (!proceso.HasExited) proceso.Kill(true);
             await proceso.WaitForExitAsync(CancellationToken.None);
             await Task.WhenAll(salida, error);
+            if (!cancelacion.IsCancellationRequested)
+                throw new TimeoutException("La consulta superó el tiempo de espera. La salida recibida se conserva para revisar el motivo.");
             throw;
         }
         var texto = (await salida) + "\n" + (await error);
-        if (!string.IsNullOrEmpty(clave)) texto = texto.Replace(clave, "[clave protegida]", StringComparison.Ordinal);
+        texto = Proteger(texto);
         return new(proceso.ExitCode, texto.Trim());
     }
 }
