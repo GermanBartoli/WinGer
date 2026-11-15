@@ -57,10 +57,7 @@ public sealed partial class MainWindow
                             args.Cancel = true;
                             try
                             {
-                                var datos = new Windows.ApplicationModel.DataTransfer.DataPackage();
-                                datos.SetText(($"{comando.Nombre}\n{comando.Comando}\nÚltima ejecución: {resultado.Inicio.ToLocalTime():g} · Duración: {(resultado.Fin - resultado.Inicio).TotalSeconds:N0} s · Código: {resultado.Codigo?.ToString() ?? "sin confirmar"}\n\n{resultado.Mensaje}\n\n").Replace("\n", Environment.NewLine) + resultado.Salida);
-                                Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(datos);
-                                Windows.ApplicationModel.DataTransfer.Clipboard.Flush();
+                                System.Windows.Forms.Clipboard.SetText(($"{comando.Nombre}\n{comando.Comando}\nÚltima ejecución: {resultado.Inicio.ToLocalTime():g} · Duración: {(resultado.Fin - resultado.Inicio).TotalSeconds:N0} s · Código: {resultado.Codigo?.ToString() ?? "sin confirmar"}\n\n{resultado.Mensaje}\n\n").Replace("\n", Environment.NewLine) + resultado.Salida);
                                 dialogo.PrimaryButtonText = "Copiado";
                             }
                             catch (Exception)
