@@ -14,6 +14,12 @@ static class PruebasReparacion
         verificar(corregido.Nivel == "verde" && corregido.Salida.Contains("tardará algún") && corregido.Salida.Contains("100%") && !corregido.Salida.Contains("1%") && !corregido.Salida.Contains('¾'), "SFC histórico recupera acentos, compacta progreso y reconoce integridad entre líneas");
         var dism = ComandosReparacion.Todos.Single(c => c.Argumentos.Contains("AnalyzeComponentStore"));
         verificar(ResultadosReparacion.Interpretar(dism, ahora, ahora, 0, "Component Store Cleanup Recommended : Yes\nThe operation completed successfully.").Mensaje.Contains("liberar espacio"), "DISM explica limpieza recomendada sin confundirla con corrupción");
+        foreach (var recomendacion in new[] { "Component Store Cleanup Recommended : Yes", "Limpieza del almacén de componentes recomendada : Sí" })
+        {
+            verificar(ResultadosReparacion.Interpretar(dism, ahora, ahora, 0, recomendacion).Nivel == "verde", "DISM con limpieza recomendada es un análisis correcto: " + recomendacion);
+            verificar(ResultadosReparacion.Interpretar(dism, ahora, ahora, 87, recomendacion).Nivel == "rojo", "la recomendación de limpieza no oculta errores de DISM");
+            verificar(ResultadosReparacion.Interpretar(dism, ahora, ahora, 3010, recomendacion).Nivel == "amarillo", "la recomendación de limpieza conserva el aviso de reinicio");
+        }
         verificar(ResultadosReparacion.Interpretar(dism, ahora, ahora, 0, "Component Store Cleanup Recommended : No").Nivel == "verde", "DISM sin limpieza recomendada queda verde");
         verificar(ResultadosReparacion.LimpiarSalida("[===97.9%=== ]\r[===97.9%=== ]\r[===100.0%===]\nResultado correcto").Split(Environment.NewLine).Length == 2, "DISM conserva último progreso y resultado final");
         verificar(ResultadosReparacion.Interpretar(sfc, ahora, ahora, 5, "Error. Reiniciar no es necesario.").Nivel == "rojo", "mencionar reiniciar no oculta un código de error");

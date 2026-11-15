@@ -49,8 +49,26 @@ public sealed partial class MainWindow
                     cuerpo.Children.Add(Boton("Ver último resultado", async () => {
                         var detalle = new StackPanel { Spacing = 16 };
                         detalle.Children.Add(Texto(resultado.Mensaje));
+                        detalle.Children.Add(Texto("Resultado guardado de la última ejecución en WinGer. Si ejecutaste una limpieza por fuera, volvé a analizar para actualizarlo."));
                         detalle.Children.Add(new TextBlock { Text = resultado.Salida, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true, FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Consolas") });
-                        var dialogo = new ContentDialog { XamlRoot = Raiz.XamlRoot, Title = comando.Nombre, CloseButtonText = "Cerrar", Content = new ScrollViewer { MaxHeight = Math.Max(200, Raiz.ActualHeight - 230), Content = detalle }, HorizontalContentAlignment = HorizontalAlignment.Stretch };
+                        var dialogo = new ContentDialog { XamlRoot = Raiz.XamlRoot, Title = comando.Nombre, PrimaryButtonText = "Copiar todo", CloseButtonText = "Cerrar", Content = new ScrollViewer { MaxHeight = Math.Max(200, Raiz.ActualHeight - 230), Content = detalle }, HorizontalContentAlignment = HorizontalAlignment.Stretch };
+                        dialogo.PrimaryButtonClick += (_, args) =>
+                        {
+                            args.Cancel = true;
+                            try
+                            {
+                                var datos = new Windows.ApplicationModel.DataTransfer.DataPackage();
+                                datos.SetText(($"{comando.Nombre}\n{comando.Comando}\nÚltima ejecución: {resultado.Inicio.ToLocalTime():g} · Duración: {(resultado.Fin - resultado.Inicio).TotalSeconds:N0} s · Código: {resultado.Codigo?.ToString() ?? "sin confirmar"}\n\n{resultado.Mensaje}\n\n").Replace("\n", Environment.NewLine) + resultado.Salida);
+                                Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(datos);
+                                Windows.ApplicationModel.DataTransfer.Clipboard.Flush();
+                                dialogo.PrimaryButtonText = "Copiado";
+                            }
+                            catch (Exception)
+                            {
+                                dialogo.PrimaryButtonText = "Reintentar copia";
+                                Modelo.Estado = "No se pudo copiar el resultado. Volvé a intentarlo.";
+                            }
+                        };
                         dialogo.Resources["ContentDialogMaxWidth"] = 860d;
                         detalle.Width = Math.Max(240, Math.Min(780, Raiz.ActualWidth - 100));
                         await dialogo.ShowAsync();

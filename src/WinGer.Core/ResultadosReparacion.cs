@@ -26,7 +26,7 @@ public static class ResultadosReparacion
         else if (comando.Argumentos.Contains("/AnalyzeComponentStore"))
         {
             if (System.Text.RegularExpressions.Regex.IsMatch(texto, @"(?:component store cleanup recommended|limpieza del almacén de componentes recomendada|se recomienda.*limpieza.*)\s*:\s*(?:yes|sí|si)"))
-                mensaje = "Análisis correcto. Windows recomienda limpiar componentes antiguos para liberar espacio; no indica archivos dañados.";
+            { nivel = "verde"; mensaje = "Análisis correcto. Windows recomienda limpiar componentes antiguos para liberar espacio; no indica archivos dañados."; }
             else if (System.Text.RegularExpressions.Regex.IsMatch(texto, @"(?:component store cleanup recommended|limpieza del almacén de componentes recomendada|se recomienda.*limpieza.*)\s*:\s*no"))
             { nivel = "verde"; mensaje = "Análisis correcto. Windows no recomienda limpiar el almacén de componentes."; }
             else mensaje = "Análisis completado. Revisá en el detalle si Windows recomienda una limpieza.";
