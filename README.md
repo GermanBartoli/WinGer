@@ -6,7 +6,7 @@
 <p align="center"><strong>Actualizá Windows con información, a tu ritmo.</strong><br />WinGet · Microsoft Store · VirusTotal</p>
 
 <p align="center">
-  <a href="https://github.com/GermanBartoli/WinGer/releases"><img src="https://img.shields.io/badge/versión-0.5.4-43dfbf?style=flat-square" alt="Vista previa 0.5.4" /></a>
+  <a href="https://github.com/GermanBartoli/WinGer/releases"><img src="https://img.shields.io/badge/versión-0.6.0-43dfbf?style=flat-square" alt="Vista previa 0.6.0" /></a>
   <img src="https://img.shields.io/badge/Windows-x64-0078D4?style=flat-square" alt="Windows x64" />
   <img src="https://img.shields.io/badge/.NET-10-512BD4?style=flat-square" alt=".NET 10" />
   <img src="https://img.shields.io/badge/interfaz-WinUI_3-102a43?style=flat-square" alt="WinUI 3" />
@@ -65,6 +65,16 @@ Las actualizaciones confirmadas por WinGet salen del listado sin desmarcar las d
 **Historial de mis actualizaciones** muestra fecha y versiones; **Registro de operaciones** conserva la vista anterior. Los informes de más de 30 días indican **Análisis antiguo · más de 30 días**.
 
 Si una consulta confirma **Sin informe**, **Subir instalador a VirusTotal…** descarga el archivo y comprueba su SHA-256 y firma. Abre la página de subida en el navegador integrado; **Seleccionar este instalador en VirusTotal** pide confirmar que se compartirá con terceros antes de seleccionar el archivo. Completá cualquier confirmación del sitio y, al terminar, usá **Leer web** para guardar el resultado. No instala ni declara seguro el archivo; la carga web depende del selector de VirusTotal y no elude sus límites.
+
+## Protección con Microsoft Defender
+
+La sección **Protección** del menú izquierdo consulta el estado real de Defender al abrirse y cada 30 segundos mientras está visible. Ofrece tarjetas para análisis rápido, completo y de una carpeta, junto con actualización de definiciones. Muestra las fechas de inicio y fin registradas por Windows, incluso para análisis hechos fuera de WinGer.
+
+También informa el estado del antivirus, tiempo real, comportamiento, protección contra alteraciones, definiciones y amenazas conocidas. El registro de amenazas no corresponde necesariamente al último análisis. Las fechas ausentes se muestran como sin registro; Windows no expone aquí una fecha global del análisis personalizado. **Abrir Seguridad de Windows** permite revisar el historial completo.
+
+Las acciones requieren confirmación y pueden solicitar administrador. Respetan las políticas de protección de Windows; WinGer no modifica exclusiones ni desactiva defensas. No se inicia ningún análisis automáticamente. Si Defender está deshabilitado o en modo pasivo, se informa y se deshabilitan las acciones.
+
+Fuentes: [estado de Defender](https://learn.microsoft.com/powershell/module/defender/get-mpcomputerstatus), [análisis](https://learn.microsoft.com/powershell/module/defender/start-mpscan) y [definiciones](https://learn.microsoft.com/powershell/module/defender/update-mpsignature).
 
 ## Qué conviene consultar
 
@@ -281,7 +291,7 @@ Reparar PC agrupa análisis, reparación e información. Cada comando conserva s
 
 Configuración muestra la carpeta de datos (%LOCALAPPDATA%\WinGer) y permite abrirla. Crear backup guarda configuración, caché e historial en un único JSON; Importar restaura ese archivo tras confirmar el reemplazo. No incluye credenciales de Windows, sesiones web, iconos regenerables ni instaladores. Borrar caché conserva ajustes e historial de reparaciones. Los ajustes continúan guardándose automáticamente.
 
-## Novedades de 0.5.4
+## Novedades de 0.6.0
 
 - El análisis de componentes completado correctamente aparece verde aunque Windows recomiende limpieza; la recomendación se conserva como información.
 - Ver último resultado permite copiar el informe completo junto a Cerrar y aclara que muestra la última ejecución guardada en WinGer.

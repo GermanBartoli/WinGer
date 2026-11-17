@@ -45,6 +45,7 @@ Verificar(ConsultaMicrosoftStore.Presentar(new(1, salidaStore)) == salidaStore &
 Verificar(ComandosReparacion.Todos.All(c => ComandosReparacion.CrearInicio(c).Verb == (c.Administrador ? "runas" : "open")), "reparaciones solicitan elevación por acción desde WinGer sin administrador");
 await PruebasCache.Ejecutar(Verificar);
 await PruebasReparacion.Ejecutar(Verificar);
+await PruebasProteccion.Ejecutar(Verificar, args.Contains("--integracion-defender"));
 await PruebasCatalogo.Ejecutar(Verificar, args.Contains("--integracion-catalogo"));
 await PruebasDependencias.Ejecutar(Verificar, args.Contains("--integracion-dependencias"));
 await PruebasAmpliadas.Ejecutar(Verificar);

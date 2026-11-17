@@ -64,6 +64,7 @@ public sealed partial class MainWindow : Window
         {
             case "explorar": MostrarExplorar(); break;
             case "reparar": MostrarReparar(); break;
+            case "proteccion": MostrarProteccion(); break;
             case "store": MostrarStore(); break;
             case "virus": MostrarVirus(); break;
             case "historial": MostrarHistorial(); break;
