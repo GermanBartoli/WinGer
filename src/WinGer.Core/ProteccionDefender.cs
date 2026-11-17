@@ -4,7 +4,9 @@ using System.Text.Json;
 
 namespace WinGer.Core;
 
-public enum AccionDefender { Rapido, Completo, Carpeta, ActualizarFirmas }
+public enum AccionDefender { Rapido, Completo, Carpeta, ActualizarFirmas, SinConexion }
+
+public sealed record VigenciaAnalisis(string Nivel, string Mensaje);
 
 public sealed record AmenazaDefender(string Nombre, bool Activa);
 
@@ -33,6 +35,17 @@ public sealed class EstadoDefender
 
 public static class ProteccionDefender
 {
+    public static VigenciaAnalisis Vigencia(AccionDefender accion, DateTimeOffset? fin, DateTimeOffset ahora)
+    {
+        if (accion is not (AccionDefender.Rapido or AccionDefender.Completo) || EstadoDefender.FechaValida(fin) is null)
+            return new("gris", "Sin fecha de análisis finalizado");
+        var dias = (ahora - fin!.Value).TotalDays;
+        if (dias < 0) return new("gris", "Fecha futura: revisá el reloj de Windows");
+        var amarillo = accion == AccionDefender.Completo ? 15 : 5;
+        var rojo = accion == AccionDefender.Completo ? 30 : 7;
+        var nivel = dias >= rojo ? "rojo" : dias >= amarillo ? "amarillo" : "verde";
+        return new(nivel, $"{(nivel == "verde" ? "Reciente" : nivel == "amarillo" ? "Conviene repetirlo" : "Pendiente de renovar")} · Hace {(int)dias} días");
+    }
     public static string PowerShell => Path.Combine(Environment.SystemDirectory, @"WindowsPowerShell\v1.0\powershell.exe");
     // Fechas ISO explícitas: Windows PowerShell 5.1 serializa DateTime de otra manera.
     public const string Consulta = """
@@ -76,6 +89,8 @@ public static class ProteccionDefender
             AccionDefender.Carpeta when !string.IsNullOrWhiteSpace(carpeta) && Path.IsPathFullyQualified(carpeta) =>
                 "Start-MpScan -ScanType CustomScan -ScanPath '" + carpeta.Replace("'", "''") + "'",
             AccionDefender.ActualizarFirmas => "Update-MpSignature",
+            // No se suspende BitLocker automáticamente. Si no se puede consultar, se bloquea el reinicio.
+            AccionDefender.SinConexion => "try { $unidad=Get-BitLockerVolume -MountPoint $env:SystemDrive -ErrorAction Stop; if ($null -eq $unidad -or $unidad.ProtectionStatus -ne 'Off') { exit 2 } } catch { exit 2 }; Start-MpWDOScan",
             _ => throw new ArgumentException("Acción o carpeta de Defender no válida.")
         };
         var inicio = new ProcessStartInfo(PowerShell) { UseShellExecute = true, Verb = "runas", WindowStyle = ProcessWindowStyle.Hidden };

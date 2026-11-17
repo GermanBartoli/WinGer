@@ -23,6 +23,19 @@ internal static class PruebasProteccion
         string Script(AccionDefender accion, string? carpeta = null) => Encoding.Unicode.GetString(Convert.FromBase64String(ProteccionDefender.CrearInicio(accion, carpeta).ArgumentList.Last()));
         verificar(Script(AccionDefender.Rapido).Contains("QuickScan") && Script(AccionDefender.Completo).Contains("FullScan"), "Análisis rápido y completo usan comandos diferentes");
         verificar(Script(AccionDefender.ActualizarFirmas).Contains("Update-MpSignature"), "Actualización usa las definiciones de Defender");
+        var sinConexion = Script(AccionDefender.SinConexion);
+        verificar(sinConexion.Contains("Start-MpWDOScan") && sinConexion.IndexOf("Get-BitLockerVolume", StringComparison.Ordinal) < sinConexion.IndexOf("Start-MpWDOScan", StringComparison.Ordinal)
+            && sinConexion.Contains("exit 2") && !sinConexion.Contains("Suspend-BitLocker"), "Análisis sin conexión comprueba BitLocker sin suspender su protección");
+        var ahora = new DateTimeOffset(2026, 11, 16, 18, 0, 0, TimeSpan.Zero);
+        foreach (var (accion, amarillo, rojo) in new[] { (AccionDefender.Rapido, 5, 7), (AccionDefender.Completo, 15, 30) })
+        {
+            verificar(ProteccionDefender.Vigencia(accion, ahora, ahora).Nivel == "verde", "Análisis reciente verde: " + accion);
+            verificar(ProteccionDefender.Vigencia(accion, ahora.AddDays(-amarillo).AddSeconds(1), ahora).Nivel == "verde", "Verde hasta el umbral exacto: " + accion);
+            verificar(ProteccionDefender.Vigencia(accion, ahora.AddDays(-amarillo), ahora).Nivel == "amarillo", "Amarillo desde el umbral exacto: " + accion);
+            verificar(ProteccionDefender.Vigencia(accion, ahora.AddDays(-rojo).AddSeconds(1), ahora).Nivel == "amarillo", "Amarillo hasta el umbral rojo: " + accion);
+            verificar(ProteccionDefender.Vigencia(accion, ahora.AddDays(-rojo), ahora).Nivel == "rojo", "Rojo desde el umbral exacto: " + accion);
+            verificar(ProteccionDefender.Vigencia(accion, null, ahora).Nivel == "gris" && ProteccionDefender.Vigencia(accion, ahora.AddDays(1), ahora).Nivel == "gris", "Sin fecha o fecha futura no aparece verde: " + accion);
+        }
         var ruta = @"C:\prueba'; Write-Output 'no ejecutable";
         verificar(Script(AccionDefender.Carpeta, ruta).Contains("-ScanPath 'C:\\prueba''; Write-Output ''no ejecutable'"), "Carpeta con comillas permanece como argumento literal");
         foreach (var accion in Enum.GetValues<AccionDefender>())
