@@ -309,3 +309,7 @@ Fuente: [Microsoft Defender sin conexión](https://learn.microsoft.com/en-us/def
 
 - El análisis de componentes completado correctamente aparece verde aunque Windows recomiende limpieza; la recomendación se conserva como información.
 - Ver último resultado permite copiar el informe completo junto a Cerrar y aclara que muestra la última ejecución guardada en WinGer.
+
+## Guías y comunidad
+
+[Guía de uso](GUIA_DE_USO.md) · [Preguntas frecuentes](PREGUNTAS_FRECUENTES.md) · [Cómo colaborar](CONTRIBUTING.md) · [Código de conducta](CODE_OF_CONDUCT.md)
