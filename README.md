@@ -293,5 +293,11 @@ Configuración muestra la carpeta de datos (%LOCALAPPDATA%\WinGer) y permite abr
 
 ## Novedades de 0.6.0
 
+- Nueva sección Protección con estado de Microsoft Defender y sincronización automática.
+- Tarjetas de análisis rápido, completo y personalizado; fechas registradas y actualización de definiciones.
+- Consulta de amenazas conocidas y acceso a Seguridad de Windows.
+
+## Novedades de 0.5.4
+
 - El análisis de componentes completado correctamente aparece verde aunque Windows recomiende limpieza; la recomendación se conserva como información.
 - Ver último resultado permite copiar el informe completo junto a Cerrar y aclara que muestra la última ejecución guardada en WinGer.
