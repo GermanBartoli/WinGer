@@ -13,7 +13,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>0.6.2</Version>
+    <Version>0.6.3</Version>
     <ApplicationIcon>Assets\WinGer.ico</ApplicationIcon>
     <AssemblyName>WinGer</AssemblyName>
   </PropertyGroup>
@@ -22,7 +22,7 @@
     <FrameworkReference Include="Microsoft.WindowsDesktop.App.WindowsForms" />
     <Using Remove="System.Windows.Forms" />
     <Using Remove="System.Drawing" />
-    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260921001" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.7.0" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.2957" />
     <ProjectReference Include="../WinGer.Core/WinGer.Core.csproj" />
   </ItemGroup>
