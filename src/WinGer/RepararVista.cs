@@ -74,6 +74,15 @@ public sealed partial class MainWindow
         fondo.Children.Add(new TextBlock { Text = "Fondo de escritorio", FontSize = 22 });
         fondo.Children.Add(Texto("Volvé a aplicar tu foto desde una copia local. Si la moviste, podés elegirla en su nueva ubicación."));
         var estado = Texto("");
+        var marcoFondo = MarcoHerramienta(fondo);
+        void MostrarFondoRestaurado()
+        {
+            marcoFondo.BorderBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 46, 160, 90));
+            marcoFondo.BorderThickness = new Thickness(2);
+            marcoFondo.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(35, 46, 160, 90));
+            estado.Text = "Windows usa la copia local del fondo.";
+        }
+        if (FondoEscritorio.UsaCopiaLocal()) MostrarFondoRestaurado();
         fondo.Children.Add(Boton("Restaurar fondo de escritorio", async () =>
         {
             var ruta = FondoEscritorio.RutaActual;
@@ -88,10 +97,10 @@ public sealed partial class MainWindow
                 if (ruta is null) return;
             }
             await Task.Run(() => FondoEscritorio.Restaurar(ruta));
-            estado.Text = "Windows aplicó la foto desde la copia local.";
+            MostrarFondoRestaurado();
         }));
         fondo.Children.Add(estado);
-        tarjetas.Children.Add(MarcoHerramienta(fondo));
+        tarjetas.Children.Add(marcoFondo);
         contenido.Children.Add(tarjetas);
         return contenido;
     }

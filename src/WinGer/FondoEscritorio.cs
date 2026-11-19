@@ -9,6 +9,14 @@ internal static class FondoEscritorio
 {
     public static string? RutaActual => Registry.GetValue(@"HKEY_CURRENT_USER\Control Panel\Desktop", "WallPaper", null) as string;
 
+    private static string Carpeta => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WinGer", "Fondo");
+
+    public static bool UsaCopiaLocal()
+    {
+        var ruta = RutaActual;
+        return File.Exists(ruta) && string.Equals(Path.GetDirectoryName(ruta), Carpeta, StringComparison.OrdinalIgnoreCase);
+    }
+
     [DllImport("user32.dll", EntryPoint = "SystemParametersInfoW", CharSet = CharSet.Unicode, SetLastError = true)]
     private static extern bool AplicarConfiguracion(uint accion, uint parametro, string ruta, uint opciones);
 
@@ -24,7 +32,7 @@ internal static class FondoEscritorio
             _ => throw new InvalidDataException("Elegí una imagen JPG, PNG o BMP.")
         };
         origen.Position = 0;
-        var carpeta = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WinGer", "Fondo");
+        var carpeta = Carpeta;
         Directory.CreateDirectory(carpeta);
         var destino = Path.Combine(carpeta, Convert.ToHexString(SHA256.HashData(origen)) + extension);
         if (!File.Exists(destino))
