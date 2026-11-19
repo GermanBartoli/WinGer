@@ -9,12 +9,14 @@ public sealed partial class MainWindow
 {
     private const string CarpetaHerramientas = @"C:\Cosas\Reparar PC";
     private bool reparacionEnCurso;
-    private void MostrarReparar()
+    private void MostrarReparar(int indice = 0)
     {
         Encabezado("Reparar PC", "Diagnóstico y reparación de Windows, junto con tus herramientas instaladas.");
         var pestanas = new Pivot();
         pestanas.Items.Add(new PivotItem { Header = "Comandos de Windows", Content = CrearComandos() });
         pestanas.Items.Add(new PivotItem { Header = "Mis herramientas", Content = CrearHerramientas() });
+        pestanas.Items.Add(new PivotItem { Header = "Solución de problemas", Content = CrearSolucionadores() });
+        pestanas.SelectedIndex = indice;
         Contenido.Children.Add(pestanas);
     }
     private StackPanel CrearComandos()
@@ -38,52 +40,82 @@ public sealed partial class MainWindow
                 cuerpo.Children.Add(Texto(comando.Administrador ? "Requiere administrador" : "Consulta sin elevación"));
                 cuerpo.Children.Add(Boton("Ejecutar…", () => EjecutarReparacion(comando)));
                 var marco = MarcoHerramienta(cuerpo);
-                if (almacen.LeerReparaciones().TryGetValue(comando.Comando, out var resultado))
-                {
-                    resultado = ResultadosReparacion.Interpretar(comando, resultado.Inicio, resultado.Fin, resultado.Codigo, resultado.Salida);
-                    cuerpo.Children.Add(Texto(resultado.Mensaje));
-                    cuerpo.Children.Add(Texto($"Última ejecución: {resultado.Inicio.ToLocalTime():g} · Duración: {(resultado.Fin - resultado.Inicio).TotalSeconds:N0} s · Código: {resultado.Codigo?.ToString() ?? "sin confirmar"}"));
-                    var color = resultado.Nivel == "verde" ? Windows.UI.Color.FromArgb(255, 46, 160, 90) : resultado.Nivel == "rojo" ? Windows.UI.Color.FromArgb(255, 220, 65, 65) : Windows.UI.Color.FromArgb(255, 210, 160, 35);
-                    marco.BorderBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(color); marco.BorderThickness = new Thickness(2);
-                    marco.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(35, color.R, color.G, color.B));
-                    cuerpo.Children.Add(Boton("Ver último resultado", async () => {
-                        var detalle = new StackPanel { Spacing = 16 };
-                        detalle.Children.Add(Texto(resultado.Mensaje));
-                        detalle.Children.Add(Texto("Resultado guardado de la última ejecución en WinGer. Si ejecutaste una limpieza por fuera, volvé a analizar para actualizarlo."));
-                        detalle.Children.Add(new TextBlock { Text = resultado.Salida, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true, FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Consolas") });
-                        var dialogo = new ContentDialog { XamlRoot = Raiz.XamlRoot, Title = comando.Nombre, PrimaryButtonText = "Copiar todo", CloseButtonText = "Cerrar", Content = new ScrollViewer { MaxHeight = Math.Max(200, Raiz.ActualHeight - 230), Content = detalle }, HorizontalContentAlignment = HorizontalAlignment.Stretch };
-                        dialogo.PrimaryButtonClick += (_, args) =>
-                        {
-                            args.Cancel = true;
-                            try
-                            {
-                                System.Windows.Forms.Clipboard.SetText(($"{comando.Nombre}\n{comando.Comando}\nÚltima ejecución: {resultado.Inicio.ToLocalTime():g} · Duración: {(resultado.Fin - resultado.Inicio).TotalSeconds:N0} s · Código: {resultado.Codigo?.ToString() ?? "sin confirmar"}\n\n{resultado.Mensaje}\n\n").Replace("\n", Environment.NewLine) + resultado.Salida);
-                                dialogo.PrimaryButtonText = "Copiado";
-                            }
-                            catch (Exception)
-                            {
-                                dialogo.PrimaryButtonText = "Reintentar copia";
-                                Modelo.Estado = "No se pudo copiar el resultado. Volvé a intentarlo.";
-                            }
-                        };
-                        dialogo.Resources["ContentDialogMaxWidth"] = 860d;
-                        detalle.Width = Math.Max(240, Math.Min(780, Raiz.ActualWidth - 100));
-                        await dialogo.ShowAsync();
-                    }));
-                }
-                else cuerpo.Children.Add(Texto("Todavía no se ejecutó desde esta versión de WinGer."));
+                AgregarResultado(comando, cuerpo, marco);
                 tarjetas.Children.Add(marco);
             }
             contenido.Children.Add(tarjetas);
         }
         return contenido;
     }
+    private StackPanel CrearSolucionadores()
+    {
+        var contenido = new StackPanel { Margin = new Thickness(0, 16, 0, 0) };
+        var comando = ComandosReparacion.Camara;
+        var cuerpo = new StackPanel { Spacing = 12 };
+        var titulo = Fila();
+        titulo.Children.Add(new FontIcon { Glyph = comando.Icono });
+        titulo.Children.Add(new TextBlock { Text = "Cámara", FontSize = 22 });
+        cuerpo.Children.Add(titulo);
+        cuerpo.Children.Add(Texto("Si la cámara desaparece o queda sin imagen al cambiar de aplicación, podés reiniciarla desde WinGer o abrir el asistente de Windows."));
+        var reparar = Boton("Reparar por comandos…", () => EjecutarReparacion(comando));
+        reparar.IsEnabled = OperatingSystem.IsWindowsVersionAtLeast(10, 0, 19041);
+        cuerpo.Children.Add(reparar);
+        if (!reparar.IsEnabled) cuerpo.Children.Add(Texto("La reparación por comandos requiere Windows 10 versión 2004 o posterior."));
+        cuerpo.Children.Add(Boton("Obtener ayuda de Windows", async () =>
+        {
+            if (!await Windows.System.Launcher.LaunchUriAsync(new Uri("ms-contact-support://smc-to-emerald/TroubleshootCamera")))
+                await Windows.System.Launcher.LaunchUriAsync(new Uri("https://aka.ms/GetHelp-CameraTroubleshooter"));
+        }));
+        var marco = MarcoHerramienta(cuerpo);
+        AgregarResultado(comando, cuerpo, marco);
+        contenido.Children.Add(marco);
+        return contenido;
+    }
+
+    private void AgregarResultado(ComandoReparacion comando, StackPanel cuerpo, Border marco)
+    {
+        if (almacen.LeerReparaciones().TryGetValue(comando.Comando, out var resultado))
+        {
+            resultado = ResultadosReparacion.Interpretar(comando, resultado.Inicio, resultado.Fin, resultado.Codigo, resultado.Salida);
+            cuerpo.Children.Add(Texto(resultado.Mensaje));
+            cuerpo.Children.Add(Texto($"Última ejecución: {resultado.Inicio.ToLocalTime():g} · Duración: {(resultado.Fin - resultado.Inicio).TotalSeconds:N0} s · Código: {resultado.Codigo?.ToString() ?? "sin confirmar"}"));
+            var color = resultado.Nivel == "verde" ? Windows.UI.Color.FromArgb(255, 46, 160, 90) : resultado.Nivel == "rojo" ? Windows.UI.Color.FromArgb(255, 220, 65, 65) : Windows.UI.Color.FromArgb(255, 210, 160, 35);
+            marco.BorderBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(color); marco.BorderThickness = new Thickness(2);
+            marco.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(35, color.R, color.G, color.B));
+            cuerpo.Children.Add(Boton("Ver último resultado", async () => {
+                var detalle = new StackPanel { Spacing = 16 };
+                detalle.Children.Add(Texto(resultado.Mensaje));
+                detalle.Children.Add(Texto("Resultado guardado de la última ejecución en WinGer."));
+                detalle.Children.Add(new TextBlock { Text = resultado.Salida, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true, FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Consolas") });
+                var dialogo = new ContentDialog { XamlRoot = Raiz.XamlRoot, Title = comando.Nombre, PrimaryButtonText = "Copiar todo", CloseButtonText = "Cerrar", Content = new ScrollViewer { MaxHeight = Math.Max(200, Raiz.ActualHeight - 230), Content = detalle }, HorizontalContentAlignment = HorizontalAlignment.Stretch };
+                dialogo.PrimaryButtonClick += (_, args) =>
+                {
+                    args.Cancel = true;
+                    try
+                    {
+                        System.Windows.Forms.Clipboard.SetText(($"{comando.Nombre}\n{comando.Comando}\nÚltima ejecución: {resultado.Inicio.ToLocalTime():g} · Duración: {(resultado.Fin - resultado.Inicio).TotalSeconds:N0} s · Código: {resultado.Codigo?.ToString() ?? "sin confirmar"}\n\n{resultado.Mensaje}\n\n").Replace("\n", Environment.NewLine) + resultado.Salida);
+                        dialogo.PrimaryButtonText = "Copiado";
+                    }
+                    catch (Exception)
+                    {
+                        dialogo.PrimaryButtonText = "Reintentar copia";
+                        Modelo.Estado = "No se pudo copiar el resultado. Volvé a intentarlo.";
+                    }
+                };
+                dialogo.Resources["ContentDialogMaxWidth"] = 860d;
+                detalle.Width = Math.Max(240, Math.Min(780, Raiz.ActualWidth - 100));
+                await dialogo.ShowAsync();
+            }));
+        }
+        else cuerpo.Children.Add(Texto("Todavía no se ejecutó desde esta versión de WinGer."));
+    }
+
     private async Task EjecutarReparacion(ComandoReparacion comando)
     {
         if (reparacionEnCurso || Modelo.Ocupado) { Modelo.Estado = "Esperá a que termine la operación actual."; return; }
         if (!ComandosReparacion.EsConocido(comando)) throw new InvalidOperationException("Comando no reconocido.");
         var confirmacion = new ContentDialog { XamlRoot = Raiz.XamlRoot, Title = comando.Nombre,
-            Content = comando.Descripcion + "\n\n" + comando.Comando + "\n\nLa consola mostrará el resultado. No cierres la consola durante una reparación.",
+            Content = comando.Descripcion + "\n\n" + (comando == ComandosReparacion.Camara ? "pnputil /restart-device <cámara seleccionada>" : comando.Comando) + "\n\nLa consola mostrará el resultado. No cierres la consola durante una reparación.",
             PrimaryButtonText = "Ejecutar", CloseButtonText = "Cancelar", DefaultButton = ContentDialogButton.Close };
         if (await confirmacion.ShowAsync() != ContentDialogResult.Primary) return;
         if (reparacionEnCurso || Modelo.Ocupado) return;
@@ -112,7 +144,8 @@ public sealed partial class MainWindow
             File.Delete(archivo);
             Modelo.Estado = comando.Nombre + " · " + resultado.Mensaje;
             almacen.Registrar("Reparación · " + comando.Nombre, resultado.Mensaje);
-            if (Navegacion.SelectedItem is NavigationViewItem seleccion && seleccion.Tag?.ToString() == "reparar") MostrarReparar();
+            if (Navegacion.SelectedItem is NavigationViewItem seleccion && seleccion.Tag?.ToString() == "reparar")
+                MostrarReparar(Contenido.Children.OfType<Pivot>().FirstOrDefault()?.SelectedIndex ?? 0);
         }
         finally { reparacionEnCurso = false; }
     }

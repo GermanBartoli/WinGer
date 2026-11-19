@@ -5,6 +5,8 @@ static class PruebasReparacion
     public static async Task Ejecutar(Action<bool, string> verificar)
     {
         var comando = ComandosReparacion.Todos[0]; var ahora = DateTimeOffset.Now;
+        var camara = ComandosReparacion.Camara;
+        verificar(ResultadosReparacion.Seccion(camara) == "Solución de problemas" && ResultadosReparacion.Interpretar(camara, ahora, ahora, 0, "OK").Mensaje.Contains("vista previa"), "la cámara distingue el reinicio de Windows de la prueba de video");
         var sfc = ComandosReparacion.Todos.Single(c => c.Argumentos == "/verifyonly");
         var chkdsk = ComandosReparacion.Todos.Single(c => c.Programa == "chkdsk.exe");
         verificar(ResultadosReparacion.Interpretar(chkdsk, ahora, ahora, 9, "Ya se estß ejecutando un examen en esta unidad.").Nivel == "amarillo", "CHKDSK diferencia un examen simultáneo de un fallo del disco");

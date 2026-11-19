@@ -6,6 +6,8 @@ public sealed record ComandoReparacion(string Nombre, string Programa, string Ar
 }
 public static class ComandosReparacion
 {
+    public static ComandoReparacion Camara { get; } = new("Cámara", "pnputil.exe", "/restart-device", "Cerrá la llamada y las aplicaciones que estén usando la cámara. WinGer buscará cámaras conectadas y reiniciará el dispositivo con permisos de administrador. Si hay varias, podrás elegir una en la consola.", true, "\uE722");
+
     public static IReadOnlyList<ComandoReparacion> Todos { get; } = new ComandoReparacion[]
     {
         new("DISM · Comprobación rápida", "dism.exe", "/Online /Cleanup-Image /CheckHealth", "Consulta si Windows ya detectó corrupción de su imagen. No realiza un análisis completo ni repara.", true, "\uE9D9"),
@@ -17,7 +19,8 @@ public static class ComandosReparacion
         new("CHKDSK · Examinar unidad de Windows", "chkdsk.exe", (Path.GetPathRoot(Environment.SystemDirectory) ?? "C:\\").TrimEnd('\\') + " /scan", "Escaneo en línea del sistema de archivos NTFS. Windows puede indicar que necesita una reparación adicional o un reinicio; no se programa aquí.", true, "\uEDA2"),
         new("Red · Ver configuración", "ipconfig.exe", "/all", "Muestra adaptadores, direcciones, DNS y configuración de red.", false, "\uE701"),
         new("Red · Vaciar caché DNS", "ipconfig.exe", "/flushdns", "Borra respuestas DNS almacenadas para que vuelvan a consultarse. Puede ayudar con nombres de sitios que dejaron de resolver.", true, "\uE72C"),
-        new("Windows · Información del sistema", "systeminfo.exe", "", "Muestra versión de Windows, memoria, equipo y revisiones instaladas.", false, "\uE946")
+        new("Windows · Información del sistema", "systeminfo.exe", "", "Muestra versión de Windows, memoria, equipo y revisiones instaladas.", false, "\uE946"),
+        Camara
     };
     public static bool EsConocido(ComandoReparacion comando) => Todos.Contains(comando);
     public static System.Diagnostics.ProcessStartInfo CrearInicio(ComandoReparacion comando, string? archivoResultado = null, bool cerrarAutomaticamente = false)
@@ -27,12 +30,52 @@ public static class ComandosReparacion
         // Solo parámetros del catálogo fijo, sin evaluar texto introducido en la interfaz.
         var destino = archivoResultado?.Replace("'", "''");
         var guardar = destino is null ? "" : "$resultado=@{ Codigo=$codigo; Salida=($salida -join [Environment]::NewLine); Fin=[DateTimeOffset]::Now.ToString('o') }; $json=$resultado | ConvertTo-Json; [IO.File]::WriteAllText('" + destino + ".tmp', $json, [Text.UTF8Encoding]::new($false)); Move-Item -LiteralPath '" + destino + ".tmp' -Destination '" + destino + "' -Force; ";
-        var script = "$ErrorActionPreference='Stop'; Write-Host 'Preparando " + comando.Nombre + "...'; $salida=@(); $codigo=1; try { Add-Type -TypeDefinition @'\n" + CapturaConsola + "\n'@; $codigo=[ConsolaReparacion]::Ejecutar('" + ruta.Replace("'", "''") + "', '" + comando.Argumentos + "', " + (comando.Programa == "sfc.exe" ? "1200" : comando.Programa == "chkdsk.exe" ? "0" : "-1") + "); $salida=@([ConsolaReparacion]::Salida) } catch { $salida += $_.ToString(); Write-Host $_ }; " + guardar + "Write-Host ('Código de salida: ' + $codigo); " + (cerrarAutomaticamente ? "" : "Read-Host 'Revisá el resultado y pulsá Entrar para cerrar'; ") + "exit $codigo";
+        var ejecutar = comando == Camara ? RepararCamara : "Add-Type -TypeDefinition @'\n" + CapturaConsola + "\n'@; $codigo=[ConsolaReparacion]::Ejecutar('" + ruta.Replace("'", "''") + "', '" + comando.Argumentos + "', " + (comando.Programa == "sfc.exe" ? "1200" : comando.Programa == "chkdsk.exe" ? "0" : "-1") + "); $salida=@([ConsolaReparacion]::Salida)";
+        var script = "$ErrorActionPreference='Stop'; Write-Host 'Preparando " + comando.Nombre + "...'; $salida=@(); $codigo=1; try { " + ejecutar + " } catch { $codigo=1; $salida += $_.ToString(); Write-Host $_ }; " + guardar + "Write-Host ('Código de salida: ' + $codigo); " + (cerrarAutomaticamente ? "" : "Read-Host 'Revisá el resultado y pulsá Entrar para cerrar'; ") + "exit $codigo";
         var inicio = new System.Diagnostics.ProcessStartInfo(Path.Combine(Environment.SystemDirectory, @"WindowsPowerShell\v1.0\powershell.exe")) { UseShellExecute = true, Verb = comando.Administrador ? "runas" : "open" };
         inicio.ArgumentList.Add("-NoProfile"); inicio.ArgumentList.Add("-EncodedCommand");
         inicio.ArgumentList.Add(Convert.ToBase64String(System.Text.Encoding.Unicode.GetBytes(script)));
         return inicio;
     }
+
+    private const string RepararCamara = """
+        $utilidad = Join-Path ([Environment]::SystemDirectory) 'pnputil.exe'
+        function Consultar-Camaras {
+            @(Get-PnpDevice -PresentOnly -ErrorAction Stop | Where-Object { $_.Class -eq 'Camera' })
+        }
+        $camaras = @(Consultar-Camaras)
+        if (!$camaras.Count) {
+            $salida += 'Buscando cambios de hardware...'
+            $salida += & $utilidad /scan-devices | Out-String
+            if ($LASTEXITCODE -ne 0) { throw 'Windows no pudo buscar cambios de hardware.' }
+            $camaras = @(Consultar-Camaras)
+        }
+        if (!$camaras.Count) { throw 'Windows no detecta ninguna cámara. Si es USB, reconectala y volvé a intentar.' }
+        $indice = 0
+        if ($camaras.Count -gt 1) {
+            for ($i = 0; $i -lt $camaras.Count; $i++) {
+                Write-Host ("{0}. {1} ({2})" -f ($i + 1), $camaras[$i].FriendlyName, $camaras[$i].InstanceId)
+            }
+            $eleccion = Read-Host 'Ingresá el número de cámara (Entrar para cancelar)'
+            if (![int]::TryParse($eleccion, [ref]$indice) -or $indice -lt 1 -or $indice -gt $camaras.Count) { throw 'Se canceló la selección de cámara.' }
+            $indice--
+        }
+        $camara = $camaras[$indice]
+        $salida += "Cámara: $($camara.FriendlyName) · Estado inicial: $($camara.Status)"
+        Write-Host $salida[-1]
+        if ($camara.ConfigManagerErrorCode -eq 22) {
+            $salida += & $utilidad /enable-device $camara.InstanceId | Out-String
+            if ($LASTEXITCODE -ne 0) { throw 'Windows no pudo habilitar la cámara. Revisá el detalle.' }
+        }
+        $salida += & $utilidad /restart-device $camara.InstanceId | Out-String
+        $codigo = $LASTEXITCODE
+        if ($codigo -eq 0) {
+            $actual = Get-PnpDevice -PresentOnly -InstanceId $camara.InstanceId -ErrorAction Stop
+            $salida += "Estado después del reinicio: $($actual.Status)"
+            if ($actual.Status -ne 'OK') { throw 'Windows todavía informa un problema con la cámara.' }
+        }
+        $salida | ForEach-Object { Write-Host $_ }
+        """;
 
     // El proceso conserva la entrada de la consola y se drenan ambas salidas en paralelo.
     private const string CapturaConsola = """

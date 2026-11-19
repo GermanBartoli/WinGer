@@ -6,7 +6,8 @@ public sealed record ResultadoReparacion(DateTimeOffset Inicio, DateTimeOffset F
 
 public static class ResultadosReparacion
 {
-    public static string Seccion(ComandoReparacion comando) => comando.Argumentos is "/scannow" or "/flushdns" || comando.Argumentos.Contains("/RestoreHealth")
+    public static string Seccion(ComandoReparacion comando) => comando == ComandosReparacion.Camara ? "Solución de problemas"
+        : comando.Argumentos is "/scannow" or "/flushdns" || comando.Argumentos.Contains("/RestoreHealth")
         ? "Reparación y mantenimiento" : comando.Programa is "systeminfo.exe" || comando.Argumentos == "/all" ? "Información del equipo" : "Análisis y comprobaciones";
 
     public static ResultadoReparacion Interpretar(ComandoReparacion comando, DateTimeOffset inicio, DateTimeOffset fin, int? codigo, string salida)
@@ -21,6 +22,7 @@ public static class ResultadosReparacion
         else if (comando.Programa == "chkdsk.exe" && Contiene("examen en esta unidad", "scan is already running"))
             mensaje = "Ya hay un examen de esta unidad en curso. Esperá a que termine antes de volver a ejecutar CHKDSK.";
         else if (codigo != 0) { nivel = "rojo"; mensaje = "El comando informó un error. Revisá el detalle."; }
+        else if (comando == ComandosReparacion.Camara) { nivel = "verde"; mensaje = "Windows reinició la cámara. Abrí Discord y comprobá la vista previa."; }
         else if (Contiene("restart required", "reboot required", "debe reiniciar", "es necesario reiniciar")) mensaje = "Revisá el resultado: requiere reiniciar Windows.";
         else if (Contiene("unable to fix", "could not", "no pudo", "no se pudo", "unrepairable", "no se puede reparar")) { nivel = "rojo"; mensaje = "Se detectaron problemas que no pudieron resolverse."; }
         else if (comando.Argumentos.Contains("/AnalyzeComponentStore"))
