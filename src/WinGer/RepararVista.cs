@@ -137,7 +137,20 @@ public sealed partial class MainWindow
             {
                 using var documento = System.Text.Json.JsonDocument.Parse(await File.ReadAllTextAsync(archivo));
                 var raiz = documento.RootElement; codigo = raiz.GetProperty("Codigo").GetInt32(); salida = raiz.GetProperty("Salida").GetString() ?? "";
-                fin = DateTimeOffset.Parse(raiz.GetProperty("Fin").GetString()!, System.Globalization.CultureInfo.InvariantCulture);
+                if (comando == ComandosReparacion.Camara && codigo == 0)
+                {
+                    try
+                    {
+                        await VistaPreviaCamara.Mostrar(raiz.GetProperty("InstanciaCamara").GetString()!);
+                        salida += Environment.NewLine + ResultadosReparacion.VideoConfirmado;
+                    }
+                    catch (Exception error)
+                    {
+                        salida += Environment.NewLine + ResultadosReparacion.VideoSinConfirmar + " " + error.Message;
+                    }
+                    fin = DateTimeOffset.Now;
+                }
+                else fin = DateTimeOffset.Parse(raiz.GetProperty("Fin").GetString()!, System.Globalization.CultureInfo.InvariantCulture);
             }
             var resultado = ResultadosReparacion.Interpretar(comando, fechaInicio, fin, codigo, salida);
             almacen.GuardarReparacion(comando, resultado);

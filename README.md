@@ -6,7 +6,7 @@
 <p align="center"><strong>Actualizá Windows con información, a tu ritmo.</strong><br />WinGet · Microsoft Store · VirusTotal</p>
 
 <p align="center">
-  <a href="https://github.com/GermanBartoli/WinGer/releases"><img src="https://img.shields.io/badge/versión-0.7.0-43dfbf?style=flat-square" alt="Vista previa 0.7.0" /></a>
+  <a href="https://github.com/GermanBartoli/WinGer/releases"><img src="https://img.shields.io/badge/versión-0.7.1-43dfbf?style=flat-square" alt="Vista previa 0.7.1" /></a>
   <img src="https://img.shields.io/badge/Windows-x64-0078D4?style=flat-square" alt="Windows x64" />
   <img src="https://img.shields.io/badge/.NET-10-512BD4?style=flat-square" alt=".NET 10" />
   <img src="https://img.shields.io/badge/interfaz-WinUI_3-102a43?style=flat-square" alt="WinUI 3" />
@@ -56,7 +56,7 @@ Para actualizar WinGer, cerralo desde **bandeja → Salir** y reemplazá los arc
 
 **Reparar PC → Comandos de Windows** ofrece diez acciones de diagnóstico y reparación: DISM, SFC, CHKDSK, configuración de red, caché DNS e información del sistema. Cada acción describe su efecto y pide confirmación antes de abrir la consola; solicita elevación cuando corresponde. La consola conserva el resultado para leerlo. El check **Cerrar la consola automáticamente al terminar** permite omitir la espera de Enter y se recuerda entre sesiones. El último resultado presenta los acentos corregidos, el progreso compacto y un cuadro más amplio. SFC sin infracciones queda verde; DISM distingue una recomendación de limpieza de un error. Para reparar archivos de Windows, ejecutá DISM RestoreHealth antes de SFC scannow. No se ejecutan reparaciones automáticamente.
 
-**Reparar PC → Solución de problemas → Cámara** permite reiniciar una cámara por comandos y consultar el resultado. Si hay varias, elegí la que querés reparar. También podés abrir el solucionador de cámara de **Obtener ayuda de Windows**.
+**Reparar PC → Solución de problemas → Cámara** permite reiniciar una cámara por comandos y consultar el resultado. Si hay varias, elegí la que querés reparar. Después del reinicio, WinGer muestra tres segundos de video y guarda el resultado en **Ver último resultado**. También podés abrir el solucionador de cámara de **Obtener ayuda de Windows**.
 
 **Mis herramientas** muestra los accesos de `C:\Cosas\Reparar PC`, con búsqueda e iconos del Shell de Windows. Abre los accesos originales conservando sus opciones; reconoce también los ejecutables de las carpetas Everything y ProcessExplorer. **Actualizar accesos** vuelve a leer la carpeta. La extracción de iconos serializa las consultas al Shell y usa hilos STA con COM inicializado para resolver accesos `.lnk` y `.url` sin bloquear la interfaz. Si Windows no proporciona un icono, se muestra uno genérico.
 
@@ -256,6 +256,8 @@ dotnet build src/WinGer/WinGer.csproj -c Release -p:Platform=x64
 dotnet run --project tests/WinGer.Pruebas -c Release
 ./scripts/Publicar.ps1
 ```
+
+Cada release debe dejar la última versión local en `C:\Cosas\Proyectos\release\WinGer\App\WinGer.exe`. Es el destino predeterminado de `Publicar.ps1`.
 
 Las pruebas cubren la independencia y persistencia de fuentes, caché, manifiestos, aprobación, parsing de vt-cli y errores HTTP simulados. Para comprobar firmas y la lista real sin instalar ni subir archivos:
 

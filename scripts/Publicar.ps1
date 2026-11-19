@@ -1,4 +1,4 @@
-param([string]$Destino = "$PSScriptRoot\..\artifacts\WinGer-win-x64")
+param([string]$Destino = "C:\Cosas\Proyectos\release\WinGer\App")
 $ErrorActionPreference = 'Stop'
 
 $rutaAbsoluta = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Destino)

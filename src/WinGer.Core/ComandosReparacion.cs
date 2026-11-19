@@ -6,7 +6,7 @@ public sealed record ComandoReparacion(string Nombre, string Programa, string Ar
 }
 public static class ComandosReparacion
 {
-    public static ComandoReparacion Camara { get; } = new("Cámara", "pnputil.exe", "/restart-device", "Cerrá la llamada y las aplicaciones que estén usando la cámara. WinGer buscará cámaras conectadas y reiniciará el dispositivo con permisos de administrador. Si hay varias, podrás elegir una en la consola.", true, "\uE722");
+    public static ComandoReparacion Camara { get; } = new("Cámara", "pnputil.exe", "/restart-device", "Cerrá la llamada y las aplicaciones que estén usando la cámara. WinGer buscará cámaras conectadas y reiniciará el dispositivo con permisos de administrador. Si hay varias, podrás elegir una en la consola. Después del reinicio verás tres segundos de video.", true, "\uE722");
 
     public static IReadOnlyList<ComandoReparacion> Todos { get; } = new ComandoReparacion[]
     {
@@ -29,7 +29,9 @@ public static class ComandosReparacion
         var ruta = Path.Combine(Environment.SystemDirectory, comando.Programa);
         // Solo parámetros del catálogo fijo, sin evaluar texto introducido en la interfaz.
         var destino = archivoResultado?.Replace("'", "''");
-        var guardar = destino is null ? "" : "$resultado=@{ Codigo=$codigo; Salida=($salida -join [Environment]::NewLine); Fin=[DateTimeOffset]::Now.ToString('o') }; $json=$resultado | ConvertTo-Json; [IO.File]::WriteAllText('" + destino + ".tmp', $json, [Text.UTF8Encoding]::new($false)); Move-Item -LiteralPath '" + destino + ".tmp' -Destination '" + destino + "' -Force; ";
+        var guardar = destino is null ? "" : "$resultado=@{ Codigo=$codigo; Salida=($salida -join [Environment]::NewLine); Fin=[DateTimeOffset]::Now.ToString('o') }; if ($camara) { $resultado.InstanciaCamara=$camara.InstanceId }; $json=$resultado | ConvertTo-Json; [IO.File]::WriteAllText('" + destino + ".tmp', $json, [Text.UTF8Encoding]::new($false)); Move-Item -LiteralPath '" + destino + ".tmp' -Destination '" + destino + "' -Force; ";
+        if (comando == Camara && destino != null)
+            guardar += "if ($codigo -eq 0) { Write-Host 'Comprobando la vista previa en WinGer...'; $espera=[Diagnostics.Stopwatch]::StartNew(); while ([IO.File]::Exists('" + destino + "') -and $espera.Elapsed.TotalSeconds -lt 30) { Start-Sleep -Milliseconds 200 } }; ";
         var ejecutar = comando == Camara ? RepararCamara : "Add-Type -TypeDefinition @'\n" + CapturaConsola + "\n'@; $codigo=[ConsolaReparacion]::Ejecutar('" + ruta.Replace("'", "''") + "', '" + comando.Argumentos + "', " + (comando.Programa == "sfc.exe" ? "1200" : comando.Programa == "chkdsk.exe" ? "0" : "-1") + "); $salida=@([ConsolaReparacion]::Salida)";
         var script = "$ErrorActionPreference='Stop'; Write-Host 'Preparando " + comando.Nombre + "...'; $salida=@(); $codigo=1; try { " + ejecutar + " } catch { $codigo=1; $salida += $_.ToString(); Write-Host $_ }; " + guardar + "Write-Host ('Código de salida: ' + $codigo); " + (cerrarAutomaticamente ? "" : "Read-Host 'Revisá el resultado y pulsá Entrar para cerrar'; ") + "exit $codigo";
         var inicio = new System.Diagnostics.ProcessStartInfo(Path.Combine(Environment.SystemDirectory, @"WindowsPowerShell\v1.0\powershell.exe")) { UseShellExecute = true, Verb = comando.Administrador ? "runas" : "open" };

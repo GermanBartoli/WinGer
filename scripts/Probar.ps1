@@ -17,8 +17,8 @@ try {
     $codigoPruebas = $LASTEXITCODE
     $salidaPruebas | ForEach-Object { Write-Host $_ }
     if ($codigoPruebas -ne 0) { throw 'Fallaron las pruebas. Consultá el informe.' }
-    $salidaBuild = @(& "$PSScriptRoot\Publicar.ps1" 2>&1 | ForEach-Object { "$_" })
     $publicacion = Join-Path $raiz 'artifacts\WinGer-win-x64'
+    $salidaBuild = @(& "$PSScriptRoot\Publicar.ps1" -Destino $publicacion 2>&1 | ForEach-Object { "$_" })
     foreach ($recurso in @('WinGer.exe','WinGer.dll','WinGer.Core.dll','WinGer.pri','MainWindow.xbf','Assets\WinGer.ico')) {
         $ruta = Join-Path $publicacion $recurso
         if (!(Test-Path -LiteralPath $ruta) -or (Get-Item -LiteralPath $ruta).Length -eq 0) { throw "Falta recurso publicado: $recurso" }
