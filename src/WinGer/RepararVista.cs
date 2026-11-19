@@ -68,7 +68,31 @@ public sealed partial class MainWindow
         }));
         var marco = MarcoHerramienta(cuerpo);
         AgregarResultado(comando, cuerpo, marco);
-        contenido.Children.Add(marco);
+        var tarjetas = new PanelAjustable { AnchoElemento = 420 };
+        tarjetas.Children.Add(marco);
+        var fondo = new StackPanel { Spacing = 12 };
+        fondo.Children.Add(new TextBlock { Text = "Fondo de escritorio", FontSize = 22 });
+        fondo.Children.Add(Texto("Volvé a aplicar tu foto desde una copia local. Si la moviste, podés elegirla en su nueva ubicación."));
+        var estado = Texto("");
+        fondo.Children.Add(Boton("Restaurar fondo de escritorio", async () =>
+        {
+            var ruta = FondoEscritorio.RutaActual;
+            if (!File.Exists(ruta))
+            {
+                estado.Text = string.IsNullOrWhiteSpace(ruta) ? "Elegí la foto que querés usar." : $"La imagen configurada ya no está disponible en {ruta}. Elegí la foto para recuperarla.";
+                var selector = new Windows.Storage.Pickers.FileOpenPicker();
+                WinRT.Interop.InitializeWithWindow.Initialize(selector, WinRT.Interop.WindowNative.GetWindowHandle(this));
+                foreach (var extension in new[] { ".jpg", ".jpeg", ".png", ".bmp" })
+                    selector.FileTypeFilter.Add(extension);
+                ruta = (await selector.PickSingleFileAsync())?.Path;
+                if (ruta is null) return;
+            }
+            await Task.Run(() => FondoEscritorio.Restaurar(ruta));
+            estado.Text = "Windows aplicó la foto desde la copia local.";
+        }));
+        fondo.Children.Add(estado);
+        tarjetas.Children.Add(MarcoHerramienta(fondo));
+        contenido.Children.Add(tarjetas);
         return contenido;
     }
 
