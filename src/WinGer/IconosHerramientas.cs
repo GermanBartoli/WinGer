@@ -22,18 +22,126 @@ public sealed partial class MainWindow
     [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
     private static extern IntPtr SHGetFileInfo(string ruta, uint atributos, out InformacionIconoShell informacion, uint tamaño, uint opciones);
 
-    private static byte[]? LeerIconoArchivo(string ruta)
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    private static extern int SHDefExtractIcon(string archivo, int indice, uint opciones, out IntPtr grande, IntPtr pequeño, uint tamaño);
+
+    [DllImport("shell32.dll")]
+    private static extern int SHGetImageList(int tipo, ref Guid interfaz, out IntPtr lista);
+
+    [DllImport("comctl32.dll")]
+    private static extern IntPtr ImageList_GetIcon(IntPtr lista, int indice, uint opciones);
+
+    private static (string Archivo, int Indice) RecursoHerramienta(string ruta)
     {
-        SHGetFileInfo(ruta, 0, out var informacion, (uint)Marshal.SizeOf<InformacionIconoShell>(), 0x100);
-        if (informacion.Icono == IntPtr.Zero) return null;
+        if (Path.GetExtension(ruta).Equals(".lnk", StringComparison.OrdinalIgnoreCase))
+        {
+            dynamic shell = Activator.CreateInstance(Type.GetTypeFromProgID("WScript.Shell", true)!)!;
+            try
+            {
+                dynamic acceso = shell.CreateShortcut(ruta);
+                try
+                {
+                    string recurso = acceso.IconLocation;
+                    var coma = recurso.LastIndexOf(',');
+                    if (coma > 0 && int.TryParse(recurso[(coma + 1)..], out var indice))
+                        return (recurso[..coma], indice);
+                    return ((string)acceso.TargetPath, 0);
+                }
+                finally { Marshal.ReleaseComObject(acceso); }
+            }
+            finally { Marshal.ReleaseComObject(shell); }
+        }
+        if (Path.GetExtension(ruta).Equals(".url", StringComparison.OrdinalIgnoreCase))
+        {
+            var archivo = "";
+            var indice = 0;
+            foreach (var linea in File.ReadLines(ruta))
+            {
+                if (linea.StartsWith("IconFile=", StringComparison.OrdinalIgnoreCase)) archivo = linea[9..];
+                if (linea.StartsWith("IconIndex=", StringComparison.OrdinalIgnoreCase)) int.TryParse(linea[10..], out indice);
+            }
+            return (archivo, indice);
+        }
+        return (ruta, 0);
+    }
+
+    private static async Task<byte[]?> LeerLogoDeAcceso(string ruta)
+    {
+        dynamic shell = Activator.CreateInstance(Type.GetTypeFromProgID("Shell.Application", true)!)!;
+        string? id;
         try
         {
-            using var icono = System.Drawing.Icon.FromHandle(informacion.Icono);
-            using var bitmap = icono.ToBitmap(); using var flujo = new MemoryStream();
-            bitmap.Save(flujo, System.Drawing.Imaging.ImageFormat.Png); return flujo.ToArray();
+            dynamic carpeta = shell.NameSpace(Path.GetDirectoryName(ruta));
+            try
+            {
+                dynamic elemento = carpeta.ParseName(Path.GetFileName(ruta));
+                try { id = elemento.ExtendedProperty("System.Link.TargetParsingPath") as string; }
+                finally { Marshal.ReleaseComObject(elemento); }
+            }
+            finally { Marshal.ReleaseComObject(carpeta); }
         }
-        finally { DestroyIcon(informacion.Icono); }
+        finally { Marshal.ReleaseComObject(shell); }
+        if (string.IsNullOrEmpty(id) || !id.Contains('!')) return null;
+        var aplicacion = Windows.ApplicationModel.AppInfo.GetFromAppUserModelId(id);
+        using var flujo = await aplicacion.DisplayInfo.GetLogo(new Windows.Foundation.Size(128, 128)).OpenReadAsync();
+        if (flujo.Size == 0 || flujo.Size > 4 * 1024 * 1024) return null;
+        using var lector = new Windows.Storage.Streams.DataReader(flujo);
+        var datos = new byte[(int)flujo.Size];
+        await lector.LoadAsync((uint)datos.Length);
+        lector.ReadBytes(datos);
+        return datos;
     }
+
+    private static byte[]? LeerIconoArchivo(string ruta)
+    {
+        var tamañoInfo = (uint)Marshal.SizeOf<InformacionIconoShell>();
+        try
+        {
+            var (archivo, indice) = RecursoHerramienta(ruta);
+            archivo = Environment.ExpandEnvironmentVariables(archivo.Trim().Trim('"'));
+            if (Path.IsPathFullyQualified(archivo) && !archivo.StartsWith(@"\\") && File.Exists(archivo) &&
+                SHDefExtractIcon(archivo, indice, 0, out var original, IntPtr.Zero, 128) == 0 &&
+                original != IntPtr.Zero)
+                return ConvertirIconoHerramienta(original);
+            if (Path.GetExtension(ruta).Equals(".lnk", StringComparison.OrdinalIgnoreCase))
+            {
+                var logo = LeerLogoDeAcceso(ruta).GetAwaiter().GetResult();
+                if (logo is not null) return logo;
+            }
+        }
+        catch (Exception error) when (error is COMException or IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException)
+        {
+            System.Diagnostics.Debug.WriteLine(error);
+        }
+
+        // Algunos accesos, como los de Microsoft Store, solo tienen un índice del Shell.
+        const uint indiceSistema = 0x4000;
+        if (SHGetFileInfo(ruta, 0, out var info, tamañoInfo, indiceSistema) == IntPtr.Zero) return null;
+        var interfaz = new Guid("46EB5926-582E-4017-9FDF-E8998DAA0950");
+        const int listaExtraGrande = 2;
+        if (SHGetImageList(listaExtraGrande, ref interfaz, out var lista) < 0) return null;
+        try
+        {
+            const uint transparenteSinSuperposiciones = 1;
+            var icono = ImageList_GetIcon(lista, info.Indice, transparenteSinSuperposiciones);
+            return icono == IntPtr.Zero ? null : ConvertirIconoHerramienta(icono);
+        }
+        finally { Marshal.Release(lista); }
+    }
+
+    private static byte[] ConvertirIconoHerramienta(IntPtr manejador)
+    {
+        try
+        {
+            using var icono = System.Drawing.Icon.FromHandle(manejador);
+            using var bitmap = icono.ToBitmap();
+            using var flujo = new MemoryStream();
+            bitmap.Save(flujo, System.Drawing.Imaging.ImageFormat.Png);
+            return flujo.ToArray();
+        }
+        finally { DestroyIcon(manejador); }
+    }
+
     private static Grid IconoConCarga(Func<Task<byte[]?>> cargar)
     {
         var contenedor = new Grid { Width = 40, Height = 40 };
