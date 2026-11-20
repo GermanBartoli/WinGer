@@ -6,7 +6,7 @@
 <p align="center"><strong>Actualizá Windows con información, a tu ritmo.</strong><br />WinGet · Microsoft Store · VirusTotal</p>
 
 <p align="center">
-  <a href="https://github.com/GermanBartoli/WinGer/releases"><img src="https://img.shields.io/badge/versión-0.7.4-43dfbf?style=flat-square" alt="Vista previa 0.7.4" /></a>
+  <a href="https://github.com/GermanBartoli/WinGer/releases"><img src="https://img.shields.io/badge/versión-0.8.0-43dfbf?style=flat-square" alt="Vista previa 0.8.0" /></a>
   <img src="https://img.shields.io/badge/Windows-x64-0078D4?style=flat-square" alt="Windows x64" />
   <img src="https://img.shields.io/badge/.NET-10-512BD4?style=flat-square" alt=".NET 10" />
   <img src="https://img.shields.io/badge/interfaz-WinUI_3-102a43?style=flat-square" alt="WinUI 3" />
@@ -23,6 +23,12 @@
 ![Guía visual de WinGer](docs/portada.svg)
 
 *Esquema de orientación; no es una captura de la aplicación. N/a significa que esa fuente todavía no tiene un resultado registrado.*
+
+## Gráficos
+
+Buscá una aplicación por nombre o ruta. Marcá tus favoritas para verlas primero o elegí **Mostrar → Favoritos**. Podés aplicar alto rendimiento a las seleccionadas, completar todas las que todavía no tienen preferencia y limpiar entradas cuyo ejecutable desapareció de un disco local disponible.
+
+**Detectar aplicaciones** revisa el catálogo de Windows, el escritorio y las bibliotecas Steam disponibles. Si un juego usa un ejecutable especial, elegilo con **Agregar ejecutable**. **Recordar alto rendimiento** revisa carpetas de versión como las de Discord al abrir WinGer y cada cinco minutos mientras esté abierto, incluso en la bandeja.
 
 ## Qué podés hacer
 

@@ -54,6 +54,7 @@ public sealed partial class MainWindow : Window
         };
         AplicarTema();
         inicializado = true;
+        IniciarGraficos();
         MostrarActualizaciones();
     }
     private void CambiarSeccion(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
@@ -63,6 +64,7 @@ public sealed partial class MainWindow : Window
         else switch ((args.SelectedItem as NavigationViewItem)?.Tag?.ToString())
         {
             case "explorar": MostrarExplorar(); break;
+            case "graficos": MostrarGraficos(); break;
             case "reparar": MostrarReparar(); break;
             case "proteccion": MostrarProteccion(); break;
             case "store": MostrarStore(); break;

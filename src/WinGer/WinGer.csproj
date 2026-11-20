@@ -13,11 +13,12 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>0.7.4</Version>
+    <Version>0.8.0</Version>
     <ApplicationIcon>Assets\WinGer.ico</ApplicationIcon>
     <AssemblyName>WinGer</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
+    <Content Include="InventarioGraficos.ps1" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="Assets\WinGer.ico" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <FrameworkReference Include="Microsoft.WindowsDesktop.App.WindowsForms" />
     <Using Remove="System.Windows.Forms" />
