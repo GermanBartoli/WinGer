@@ -8,11 +8,23 @@ public sealed partial class MainWindow
 {
     private LimpiezaVista? vistaLimpieza;
 
+    private LimpiezaVista Limpiador => vistaLimpieza ??= new LimpiezaVista(Ejecutar, CrearSelectorTema(), () => configuracion.Tema);
+
+    private Task RevisarCacheExplorador(CategoriaLimpieza categoria)
+    {
+        if (Modelo.Ocupado || reparacionEnCurso)
+        {
+            Modelo.Estado = "Esperá a que termine la operación actual.";
+            return Task.CompletedTask;
+        }
+        Navegacion.SelectedItem = Navegacion.MenuItems.OfType<NavigationViewItem>().First(i => Equals(i.Tag, "limpieza"));
+        return Limpiador.AnalizarAsync(categoria);
+    }
+
     private void MostrarLimpieza()
     {
         Encabezado("Limpieza", "Abrí una categoría para revisar sus archivos o marcala para borrar el grupo completo.");
-        vistaLimpieza ??= new LimpiezaVista(Ejecutar, CrearSelectorTema(), () => configuracion.Tema);
-        Contenido.Children.Add(vistaLimpieza);
+        Contenido.Children.Add(Limpiador);
     }
 }
 
@@ -65,7 +77,9 @@ public sealed partial class LimpiezaVista : UserControl
         ActualizarFilas();
     }
 
-    private async void IniciarAnalisis(object sender, RoutedEventArgs e)
+    private async void IniciarAnalisis(object sender, RoutedEventArgs e) => await AnalizarAsync();
+
+    internal async Task AnalizarAsync(CategoriaLimpieza? categoria = null)
     {
         await ejecutar("Análisis de limpieza", async token =>
         {
@@ -83,15 +97,17 @@ public sealed partial class LimpiezaVista : UserControl
                     Estado.Text = p.Nombre;
                     Avance.Value = p.Porcentaje;
                 });
-                grupos = await Task.Run(() => AnalizarCategorias(progreso, token), token);
+                grupos = await Task.Run(() => AnalizarCategorias(categoria == null ? Limpieza.Catalogo() : [categoria], progreso, token), token);
+                if (categoria != null) Familias.SelectedIndex = 0;
                 RestablecerDetalle();
                 Espacio.Text = Limpieza.Formato(grupos.Sum(g => g.Bytes));
-                TituloEstado.Text = "Análisis terminado";
+                TituloEstado.Text = categoria?.Nombre ?? "Análisis terminado";
                 int omitidas = grupos.Sum(g => g.Inaccesibles);
                 Estado.Text = $"{grupos.Sum(g => g.Archivos.Count):N0} archivos · {grupos.Count(g => g.Archivos.Count > 0)} categorías con resultados" +
                     (omitidas > 0 ? $" · Ubicaciones inaccesibles: {omitidas}" : "");
                 Avance.Value = 100;
                 ActualizarFilas();
+                if (categoria != null && grupos[0].Archivos.Count > 0) AbrirDetalle(grupos[0]);
             }
             catch
             {
@@ -104,9 +120,8 @@ public sealed partial class LimpiezaVista : UserControl
         });
     }
 
-    private static List<AnalisisLimpieza> AnalizarCategorias(IProgress<(string, double)> progreso, CancellationToken token)
+    private static List<AnalisisLimpieza> AnalizarCategorias(IReadOnlyList<CategoriaLimpieza> catalogo, IProgress<(string, double)> progreso, CancellationToken token)
     {
-        var catalogo = Limpieza.Catalogo();
         var analisis = new List<AnalisisLimpieza>();
         foreach (var categoria in catalogo)
         {

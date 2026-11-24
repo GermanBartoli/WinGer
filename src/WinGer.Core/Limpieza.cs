@@ -15,6 +15,10 @@ public sealed record ResultadoLimpieza(int Borrados, long Bytes, int Omitidos, b
 
 public static class Limpieza
 {
+    private static readonly string CarpetaExplorador = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), @"Microsoft\Windows\Explorer");
+    public static CategoriaLimpieza Miniaturas { get; } = new("Caché de miniaturas", "Windows", CarpetaExplorador, PatronEnRaiz: "thumbcache_*.db");
+    public static CategoriaLimpieza Iconos { get; } = new("Caché de iconos", "Windows", CarpetaExplorador, PatronEnRaiz: "iconcache_*.db");
+
     public static IReadOnlyList<CategoriaLimpieza> Catalogo()
     {
         var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
@@ -23,8 +27,8 @@ public static class Limpieza
         {
             new("Temporales de más de 7 días", "Windows", Path.Combine(local, "Temp"), 7),
             new("Caché de sombreadores DirectX", "Windows", Path.Combine(local, "D3DSCache")),
-            new("Caché de miniaturas", "Windows", Path.Combine(local, @"Microsoft\Windows\Explorer"), PatronEnRaiz: "thumbcache_*.db"),
-            new("Caché de iconos", "Windows", Path.Combine(local, @"Microsoft\Windows\Explorer"), PatronEnRaiz: "iconcache_*.db"),
+            Miniaturas,
+            Iconos,
             new("Caché HTTP de NuGet", "Desarrollo", Path.Combine(local, @"NuGet\v3-cache")),
             new("Caché de VS Code", "Desarrollo", Path.Combine(movil, @"Code\Cache\Cache_Data")),
             new("Caché de código de VS Code", "Desarrollo", Path.Combine(movil, @"Code\Code Cache")),

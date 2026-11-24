@@ -15,7 +15,7 @@ public sealed partial class MainWindow
         var pestanas = new Pivot();
         pestanas.Items.Add(new PivotItem { Header = "Comandos de Windows", Content = CrearComandos() });
         pestanas.Items.Add(new PivotItem { Header = "Mis herramientas", Content = CrearHerramientas() });
-        pestanas.Items.Add(new PivotItem { Header = "Solución de problemas", Content = CrearSolucionadores() });
+        pestanas.Items.Add(new PivotItem { Header = "Solución de problemas", Content = CrearSolucionadores(pestanas) });
         pestanas.SelectedIndex = indice;
         Contenido.Children.Add(pestanas);
     }
@@ -47,7 +47,7 @@ public sealed partial class MainWindow
         }
         return contenido;
     }
-    private StackPanel CrearSolucionadores()
+    private StackPanel CrearSolucionadores(Pivot pestanas)
     {
         var contenido = new StackPanel { Margin = new Thickness(0, 16, 0, 0) };
         var comando = ComandosReparacion.Camara;
@@ -101,7 +101,33 @@ public sealed partial class MainWindow
         }));
         fondo.Children.Add(estado);
         tarjetas.Children.Add(marcoFondo);
+
+        var amd = new StackPanel { Spacing = 12 };
+        amd.Children.Add(new TextBlock { Text = "Fallos gráficos con AMD", FontSize = 22 });
+        amd.Children.Add(Texto("Si sospechás que un juego tiene problemas con los sombreadores, abrí AMD Software y buscá «Restablecer caché de sombreadores» en Gráficos → Avanzado. La próxima carga puede tardar más."));
+        var rutaAmd = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), @"AMD\CNext\CNext\RadeonSoftware.exe");
+        var abrirAmd = Boton("Abrir AMD Adrenalin", () =>
+        {
+            Process.Start(new ProcessStartInfo(rutaAmd) { UseShellExecute = true });
+            return Task.CompletedTask;
+        });
+        abrirAmd.IsEnabled = File.Exists(rutaAmd);
+        amd.Children.Add(abrirAmd);
+        if (!abrirAmd.IsEnabled) amd.Children.Add(Texto("WinGer no encontró AMD Software en su carpeta de instalación habitual."));
+        tarjetas.Children.Add(MarcoHerramienta(amd));
+
+        var explorador = new StackPanel { Spacing = 12 };
+        explorador.Children.Add(new TextBlock { Text = "Iconos en blanco o miniaturas incorrectas", FontSize = 22, TextWrapping = TextWrapping.Wrap });
+        explorador.Children.Add(Texto("Elegí qué se ve mal en el Explorador. WinGer revisa esa caché y te muestra sus archivos para que decidas cuáles borrar."));
+        var botones = Fila();
+        botones.Children.Add(Boton("Revisar iconos", () => RevisarCacheExplorador(Limpieza.Iconos)));
+        botones.Children.Add(Boton("Revisar miniaturas", () => RevisarCacheExplorador(Limpieza.Miniaturas)));
+        explorador.Children.Add(botones);
+        tarjetas.Children.Add(MarcoHerramienta(explorador));
         contenido.Children.Add(tarjetas);
+        var enlace = new HyperlinkButton { Content = "Revisar archivos del sistema (DISM y SFC)", Margin = new Thickness(0, 12, 0, 0) };
+        enlace.Click += (_, _) => pestanas.SelectedIndex = 0;
+        contenido.Children.Add(enlace);
         return contenido;
     }
 
