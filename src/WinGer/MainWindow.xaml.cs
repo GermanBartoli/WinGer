@@ -65,6 +65,7 @@ public sealed partial class MainWindow : Window
         {
             case "explorar": MostrarExplorar(); break;
             case "graficos": MostrarGraficos(); break;
+            case "limpieza": MostrarLimpieza(); break;
             case "reparar": MostrarReparar(); break;
             case "proteccion": MostrarProteccion(); break;
             case "store": MostrarStore(); break;
@@ -266,9 +267,7 @@ public sealed partial class MainWindow : Window
         minimizar.Toggled += (_, _) => GuardarAjuste(() => configuracion.MinimizarAlCerrar = minimizar.IsOn);
         Contenido.Children.Add(minimizar);
         Contenido.Children.Add(Texto("El icono W aparece junto al reloj, posiblemente dentro de la flecha de iconos ocultos. Un clic abre WinGer; clic derecho permite salir."));
-        var tema = new ComboBox { Header = "Apariencia", ItemsSource = new[] { "Predeterminado", "Oscuro", "Claro" }, SelectedItem = configuracion.Tema, Width = 220 };
-        tema.SelectionChanged += (_, _) => GuardarAjuste(() => { configuracion.Tema = tema.SelectedItem?.ToString() ?? "Predeterminado"; AplicarTema(); });
-        Contenido.Children.Add(tema);
+        Contenido.Children.Add(CrearSelectorTema());
         var clave = new PasswordBox { Header = "Clave de API de VirusTotal", PlaceholderText = "Ingresá una clave para guardarla o reemplazarla", MaxWidth = 520, HorizontalAlignment = HorizontalAlignment.Left };
         Contenido.Children.Add(clave);
         var estadoClave = Texto(EstadoClave());
@@ -314,6 +313,26 @@ public sealed partial class MainWindow : Window
         try { cambio(); almacen.Guardar(configuracion); Modelo.Estado = "Configuración guardada."; }
         catch (Exception error) { Modelo.Estado = "No se pudo guardar: " + error.Message; }
     }
-    private void AplicarTema() => Raiz.RequestedTheme = configuracion.Tema switch { "Oscuro" => ElementTheme.Dark, "Claro" => ElementTheme.Light, _ => ElementTheme.Default };
+    private ComboBox CrearSelectorTema()
+    {
+        var tema = new ComboBox { Header = "Apariencia", ItemsSource = new[] { "Predeterminado", "Oscuro", "Claro" }, SelectedItem = configuracion.Tema, Width = 220 };
+        tema.SelectionChanged += (_, _) =>
+        {
+            if (tema.SelectedItem is string elegido && elegido != configuracion.Tema)
+                GuardarAjuste(() => { configuracion.Tema = elegido; AplicarTema(); });
+        };
+        return tema;
+    }
+    private void AplicarTema()
+    {
+        Raiz.RequestedTheme = configuracion.Tema switch { "Oscuro" => ElementTheme.Dark, "Claro" => ElementTheme.Light, _ => ElementTheme.Default };
+        if (AppWindowTitleBar.IsCustomizationSupported())
+            AppWindow.TitleBar.PreferredTheme = Raiz.RequestedTheme switch
+            {
+                ElementTheme.Dark => TitleBarTheme.Dark,
+                ElementTheme.Light => TitleBarTheme.Light,
+                _ => TitleBarTheme.UseDefaultAppMode
+            };
+    }
     private void Cancelar(object sender, RoutedEventArgs e) => cancelacion?.Cancel();
 }

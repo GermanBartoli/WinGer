@@ -43,6 +43,7 @@ var salidaStore = "Updates available (1 found)\nAplicación pendiente\nWould you
 Verificar(ConsultaMicrosoftStore.Presentar(new(0, salidaStore)).Contains("No se instalaron actualizaciones.") && !ConsultaMicrosoftStore.Presentar(new(0, salidaStore)).Contains("[y/n]"), "Store aclara la instalación omitida después de una consulta correcta");
 Verificar(ConsultaMicrosoftStore.Presentar(new(1, salidaStore)) == salidaStore && ConsultaMicrosoftStore.Presentar(new(0, "Failed to read input in non-interactive mode.")) == "Failed to read input in non-interactive mode.", "Store conserva los errores sin resultado confirmado");
 Verificar(ComandosReparacion.Todos.All(c => ComandosReparacion.CrearInicio(c).Verb == (c.Administrador ? "runas" : "open")), "reparaciones solicitan elevación por acción desde WinGer sin administrador");
+PruebasLimpieza.Ejecutar(Verificar);
 await PruebasCache.Ejecutar(Verificar);
 await PruebasReparacion.Ejecutar(Verificar);
 await PruebasProteccion.Ejecutar(Verificar, args.Contains("--integracion-defender"));

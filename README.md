@@ -6,7 +6,7 @@
 <p align="center"><strong>Actualizá Windows con información, a tu ritmo.</strong><br />WinGet · Microsoft Store · VirusTotal</p>
 
 <p align="center">
-  <a href="https://github.com/GermanBartoli/WinGer/releases"><img src="https://img.shields.io/badge/versión-0.8.0-43dfbf?style=flat-square" alt="Vista previa 0.8.0" /></a>
+  <a href="https://github.com/GermanBartoli/WinGer/releases"><img src="https://img.shields.io/badge/versión-0.9.0-43dfbf?style=flat-square" alt="Vista previa 0.9.0" /></a>
   <img src="https://img.shields.io/badge/Windows-x64-0078D4?style=flat-square" alt="Windows x64" />
   <img src="https://img.shields.io/badge/.NET-10-512BD4?style=flat-square" alt=".NET 10" />
   <img src="https://img.shields.io/badge/interfaz-WinUI_3-102a43?style=flat-square" alt="WinUI 3" />
@@ -23,6 +23,10 @@
 ![Guía visual de WinGer](docs/portada.svg)
 
 *Esquema de orientación; no es una captura de la aplicación. N/a significa que esa fuente todavía no tiene un resultado registrado.*
+
+## Limpieza
+
+En **Limpieza → Analizar** podés revisar temporales de más de siete días y cachés de Windows, navegadores y aplicaciones. Marcá categorías completas o abrí sus pestañas para elegir archivos individuales por nombre, ruta y tamaño. WinGer pide confirmación antes del borrado permanente y muestra cuántos archivos pudo eliminar. En **Apariencia** podés cambiar el tema de toda la aplicación.
 
 ## Gráficos
 
