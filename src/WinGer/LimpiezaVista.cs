@@ -56,6 +56,7 @@ public sealed partial class LimpiezaVista : UserControl
     private List<AnalisisLimpieza> grupos = [];
     private bool ocupado;
 
+    private readonly DispatcherTimer reloj = new() { Interval = TimeSpan.FromMinutes(1) };
     private long? finUltimoAnalisisCompleto;
     internal bool TieneAnalisisVigente => finUltimoAnalisisCompleto is long fin &&
         System.Diagnostics.Stopwatch.GetElapsedTime(fin) < TimeSpan.FromMinutes(30);
@@ -71,7 +72,22 @@ public sealed partial class LimpiezaVista : UserControl
         Familias.ItemsSource = familias;
         FamiliasCompactas.ItemsSource = familias.Select(f => f.Nombre).ToArray();
         Familias.SelectedIndex = 0;
+        reloj.Tick += (_, _) => ActualizarAntiguedad();
+        Loaded += (_, _) => { ActualizarAntiguedad(); reloj.Start(); };
+        Unloaded += (_, _) => reloj.Stop();
         SizeChanged += (_, e) => AjustarAncho(e.NewSize.Width);
+    }
+
+    private void ActualizarAntiguedad()
+    {
+        if (finUltimoAnalisisCompleto is not long fin)
+        {
+            Antiguedad.Visibility = Visibility.Collapsed;
+            return;
+        }
+        int minutos = (int)System.Diagnostics.Stopwatch.GetElapsedTime(fin).TotalMinutes;
+        Antiguedad.Text = minutos == 0 ? "Último análisis hace menos de 1 min" : $"Último análisis hace {minutos} min";
+        Antiguedad.Visibility = Visibility.Visible;
     }
 
     private void AjustarAncho(double ancho)
@@ -109,7 +125,7 @@ public sealed partial class LimpiezaVista : UserControl
             var avanceAnterior = Avance.Value;
             try
             {
-                TituloEstado.Text = "Analizando archivos";
+                TituloEstado.Text = grupos.Count > 0 ? "Actualizando análisis" : "Analizando archivos";
                 Avance.Value = 0;
                 var progreso = new Progress<(string Nombre, double Porcentaje)>(p =>
                 {
@@ -130,6 +146,7 @@ public sealed partial class LimpiezaVista : UserControl
                 ActualizarFilas();
                 if (categoria != null && grupos[0].Archivos.Count > 0) AbrirDetalle(grupos[0]);
                 finUltimoAnalisisCompleto = categoria == null ? System.Diagnostics.Stopwatch.GetTimestamp() : null;
+                ActualizarAntiguedad();
             }
             catch
             {
@@ -302,10 +319,13 @@ public sealed partial class LimpiezaVista : UserControl
                 if (resultado.Borrados > 0)
                 {
                     finUltimoAnalisisCompleto = null;
-                    grupos.Clear();
+                    ActualizarAntiguedad();
+                    grupos = grupos.Select(g => new AnalisisLimpieza(g.Categoria,
+                        g.Archivos.Where(a => !resultado.RutasBorradas.Contains(a.Ruta)).ToList(), g.Inaccesibles))
+                        .OrderByDescending(g => g.Bytes).ToList();
                     RestablecerDetalle();
                     ActualizarFilas();
-                    Espacio.Text = Limpieza.Formato(resultado.Bytes);
+                    Espacio.Text = Limpieza.Formato(grupos.Sum(g => g.Bytes));
                     resumen = TituloEstado.Text + " · " + Estado.Text;
                 }
                 if (resultado.Cancelado) token.ThrowIfCancellationRequested();

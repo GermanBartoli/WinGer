@@ -11,7 +11,10 @@ public sealed record AnalisisLimpieza(CategoriaLimpieza Categoria, List<ArchivoL
 {
     public long Bytes { get; } = Archivos.Sum(a => a.Bytes);
 }
-public sealed record ResultadoLimpieza(int Borrados, long Bytes, int Omitidos, bool Cancelado);
+public sealed record ResultadoLimpieza(int Borrados, long Bytes, int Omitidos, bool Cancelado)
+{
+    public IReadOnlySet<string> RutasBorradas { get; init; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+}
 
 public static class Limpieza
 {
@@ -98,6 +101,7 @@ public static class Limpieza
 
     public static ResultadoLimpieza Borrar(IEnumerable<AnalisisLimpieza> seleccion, CancellationToken token)
     {
+        var rutas = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         int borrados = 0, omitidos = 0;
         long bytes = 0;
         foreach (var grupo in seleccion)
@@ -105,7 +109,7 @@ public static class Limpieza
             var prefijo = Path.TrimEndingDirectorySeparator(Path.GetFullPath(grupo.Categoria.Raiz)) + Path.DirectorySeparatorChar;
             foreach (var archivo in grupo.Archivos)
             {
-                if (token.IsCancellationRequested) return new(borrados, bytes, omitidos, true);
+                if (token.IsCancellationRequested) return new(borrados, bytes, omitidos, true) { RutasBorradas = rutas };
                 try
                 {
                     if (Path.GetFullPath(archivo.Ruta).StartsWith(prefijo, StringComparison.OrdinalIgnoreCase) &&
@@ -113,13 +117,14 @@ public static class Limpieza
                     {
                         bytes += archivo.Bytes;
                         borrados++;
+                        rutas.Add(archivo.Ruta);
                     }
                     else omitidos++;
                 }
                 catch (Exception e) when (ErrorDeAcceso(e)) { omitidos++; }
             }
         }
-        return new(borrados, bytes, omitidos, false);
+        return new(borrados, bytes, omitidos, false) { RutasBorradas = rutas };
     }
 
     public static string Formato(long bytes)

@@ -50,7 +50,7 @@ internal static class PruebasLimpieza
             verificar(cancelado.Cancelado && cancelado.Borrados == 0 && File.Exists(elegido), "cancelación antes del borrado");
             using var bloqueo = File.OpenRead(ocupado);
             var resultado = Limpieza.Borrar([plan], default);
-            verificar(resultado.Borrados == 1 && resultado.Bytes == 6 && resultado.Omitidos == 3 &&
+            verificar(resultado.Borrados == 1 && resultado.Bytes == 6 && resultado.Omitidos == 3 && resultado.RutasBorradas.SetEquals([elegido]) &&
                 !File.Exists(elegido) && new[] { reciente, copiaReciente, modificado, ocupado, conservado, externo, posterior }.All(File.Exists),
                 "borra solo lo elegido y omite archivos externos, modificados, bloqueados o posteriores al análisis");
             verificar(Limpieza.Borrar([plan], default).Borrados == 0, "reintentar la limpieza conserva los archivos restantes");

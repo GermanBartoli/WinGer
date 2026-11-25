@@ -22,12 +22,13 @@
                 Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
           <Grid ColumnSpacing="12" RowSpacing="6">
             <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-            <Grid.RowDefinitions><RowDefinition/><RowDefinition/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+            <Grid.RowDefinitions><RowDefinition/><RowDefinition/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
             <TextBlock x:Name="TituloEstado" Text="Listo para analizar" FontSize="19" FontWeight="SemiBold"/>
             <TextBlock x:Name="Espacio" Grid.Column="1" Grid.RowSpan="2" FontSize="23" FontWeight="SemiBold"
                        VerticalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
             <TextBlock x:Name="Estado" Grid.Row="1" Text="Elegí Analizar para calcular cuánto espacio ocupan los archivos." TextWrapping="Wrap" Opacity="0.75"/>
-            <ProgressBar x:Name="Avance" Grid.Row="2" Grid.ColumnSpan="2" Visibility="Collapsed"/>
+            <TextBlock x:Name="Antiguedad" Grid.Row="2" Grid.ColumnSpan="2" Visibility="Collapsed" Opacity="0.75"/>
+            <ProgressBar x:Name="Avance" Grid.Row="3" Grid.ColumnSpan="2" Visibility="Collapsed"/>
           </Grid>
         </Border>
         <Grid x:Name="Explorador" Grid.Row="1" ColumnSpacing="10" RowSpacing="8">
