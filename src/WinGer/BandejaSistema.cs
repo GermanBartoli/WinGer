@@ -9,7 +9,7 @@ public sealed class BandejaSistema : IDisposable
     public BandejaSistema(Window ventana, Action salir)
     {
         dibujo = new System.Drawing.Icon(Path.Combine(AppContext.BaseDirectory, "Assets", "WinGer.ico"), 32, 32);
-        void Mostrar() => ventana.DispatcherQueue.TryEnqueue(() => { ventana.AppWindow.Show(); ventana.Activate(); });
+        void Mostrar() => App.MostrarEnPrimerPlano(ventana);
         var menu = new System.Windows.Forms.ContextMenuStrip();
         menu.Items.Add("Abrir WinGer", null, (_, _) => Mostrar());
         menu.Items.Add("Salir", null, (_, _) => ventana.DispatcherQueue.TryEnqueue(() => salir()));

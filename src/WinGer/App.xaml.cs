@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 
@@ -15,13 +16,22 @@ public partial class App : Application
 
     internal void MostrarVentana()
     {
-        ventana?.DispatcherQueue.TryEnqueue(() =>
-        {
-            ventana.AppWindow.Show();
-            if (ventana.AppWindow.Presenter is OverlappedPresenter presentador &&
-                presentador.State == OverlappedPresenterState.Minimized)
-                presentador.Restore();
-            ventana.Activate();
-        });
+        if (ventana is { } principal)
+            principal.DispatcherQueue.TryEnqueue(() => MostrarEnPrimerPlano(principal));
     }
+
+    internal static void MostrarEnPrimerPlano(Window ventana)
+    {
+        if (ventana.AppWindow.Presenter is OverlappedPresenter presentador &&
+            presentador.State == OverlappedPresenterState.Minimized)
+            presentador.Restore();
+
+        ventana.AppWindow.Show();
+        ventana.Activate();
+        SetForegroundWindow(WinRT.Interop.WindowNative.GetWindowHandle(ventana));
+    }
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetForegroundWindow(nint ventana);
 }
