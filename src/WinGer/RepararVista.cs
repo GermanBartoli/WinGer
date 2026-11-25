@@ -219,7 +219,7 @@ public sealed partial class MainWindow
             if (Navegacion.SelectedItem is NavigationViewItem seleccion && seleccion.Tag?.ToString() == "reparar")
                 MostrarReparar(Contenido.Children.OfType<Pivot>().FirstOrDefault()?.SelectedIndex ?? 0);
         }
-        finally { reparacionEnCurso = false; }
+        finally { reparacionEnCurso = false; IniciarAnalisisPendiente(); }
     }
     private StackPanel CrearHerramientas()
     {

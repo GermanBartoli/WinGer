@@ -8,6 +8,9 @@ public sealed partial class MainWindow
 {
     private LimpiezaVista? vistaLimpieza;
 
+    private CategoriaLimpieza? categoriaAlEntrar;
+    private bool analisisAlEntrarPendiente;
+
     private LimpiezaVista Limpiador => vistaLimpieza ??= new LimpiezaVista(Ejecutar, CrearSelectorTema(), () => configuracion.Tema);
 
     private Task RevisarCacheExplorador(CategoriaLimpieza categoria)
@@ -17,14 +20,26 @@ public sealed partial class MainWindow
             Modelo.Estado = "Esperá a que termine la operación actual.";
             return Task.CompletedTask;
         }
+        categoriaAlEntrar = categoria;
         Navegacion.SelectedItem = Navegacion.MenuItems.OfType<NavigationViewItem>().First(i => Equals(i.Tag, "limpieza"));
-        return Limpiador.AnalizarAsync(categoria);
+        return Task.CompletedTask;
     }
 
     private void MostrarLimpieza()
     {
         Encabezado("Limpieza", "Abrí una categoría para revisar sus archivos o marcala para borrar el grupo completo.");
         Contenido.Children.Add(Limpiador);
+        analisisAlEntrarPendiente = !Limpiador.EnCurso;
+        IniciarAnalisisPendiente();
+    }
+
+    private void IniciarAnalisisPendiente()
+    {
+        if (!analisisAlEntrarPendiente || Modelo.Ocupado || reparacionEnCurso) return;
+        analisisAlEntrarPendiente = false;
+        var categoria = categoriaAlEntrar;
+        categoriaAlEntrar = null;
+        if (Contenido.Children.Contains(Limpiador)) _ = Limpiador.AnalizarAsync(categoria);
     }
 }
 
@@ -39,6 +54,8 @@ public sealed partial class LimpiezaVista : UserControl
     private readonly HashSet<AnalisisLimpieza> marcados = [];
     private List<AnalisisLimpieza> grupos = [];
     private bool ocupado;
+
+    internal bool EnCurso => ocupado;
 
     public LimpiezaVista(Func<string, Func<CancellationToken, Task>, Task> ejecutar, ComboBox tema, Func<string> leerTema)
     {
@@ -79,7 +96,7 @@ public sealed partial class LimpiezaVista : UserControl
 
     private async void IniciarAnalisis(object sender, RoutedEventArgs e) => await AnalizarAsync();
 
-    internal async Task AnalizarAsync(CategoriaLimpieza? categoria = null)
+    internal async Task AnalizarAsync(CategoriaLimpieza? categoria = null, string? resumenBorrado = null)
     {
         await ejecutar("Análisis de limpieza", async token =>
         {
@@ -105,6 +122,7 @@ public sealed partial class LimpiezaVista : UserControl
                 int omitidas = grupos.Sum(g => g.Inaccesibles);
                 Estado.Text = $"{grupos.Sum(g => g.Archivos.Count):N0} archivos · {grupos.Count(g => g.Archivos.Count > 0)} categorías con resultados" +
                     (omitidas > 0 ? $" · Ubicaciones inaccesibles: {omitidas}" : "");
+                if (resumenBorrado != null) Estado.Text = resumenBorrado + " · " + Estado.Text;
                 Avance.Value = 100;
                 ActualizarFilas();
                 if (categoria != null && grupos[0].Archivos.Count > 0) AbrirDetalle(grupos[0]);
@@ -268,6 +286,7 @@ public sealed partial class LimpiezaVista : UserControl
             Title = "¿Borrar los archivos seleccionados?", Content = $"{conteo} · {Limpieza.Formato(elegidos.Sum(g => g.Bytes))}\n\n{alcance}\n\nSe eliminarán de forma permanente.",
             PrimaryButtonText = "Borrar", CloseButtonText = "Cancelar", DefaultButton = ContentDialogButton.Close };
         if (await dialogo.ShowAsync() != ContentDialogResult.Primary) return;
+        string? resumen = null;
         await ejecutar("Limpieza de archivos", async token =>
         {
             Ocupado(true);
@@ -279,10 +298,12 @@ public sealed partial class LimpiezaVista : UserControl
                 ActualizarFilas();
                 TituloEstado.Text = resultado.Cancelado ? "Limpieza cancelada" : "Limpieza terminada";
                 Espacio.Text = Limpieza.Formato(resultado.Bytes);
-                Estado.Text = $"Archivos borrados: {resultado.Borrados:N0} · Omitidos: {resultado.Omitidos:N0}. Volvé a analizar para actualizar la lista.";
+                Estado.Text = $"Archivos borrados: {resultado.Borrados:N0} · Omitidos: {resultado.Omitidos:N0}";
+                if (!resultado.Cancelado || resultado.Borrados > 0) resumen = TituloEstado.Text + " · " + Estado.Text;
                 if (resultado.Cancelado) token.ThrowIfCancellationRequested();
             }
             finally { Ocupado(false); }
         });
+        if (resumen != null) await AnalizarAsync(resumenBorrado: resumen);
     }
 }

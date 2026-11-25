@@ -123,7 +123,7 @@ public sealed partial class MainWindow : Window
             Modelo.Estado = error.Message;
             almacen.Registrar(nombre, "No completado");
         }
-        finally { cancelacion = null; Modelo.Ocupado = false; FiltrarPaquetes(); GuardarCache(); }
+        finally { cancelacion = null; Modelo.Ocupado = false; FiltrarPaquetes(); GuardarCache(); IniciarAnalisisPendiente(); }
     }
     private void MostrarActualizaciones()
     {
