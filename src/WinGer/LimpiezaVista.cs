@@ -39,7 +39,8 @@ public sealed partial class MainWindow
         analisisAlEntrarPendiente = false;
         var categoria = categoriaAlEntrar;
         categoriaAlEntrar = null;
-        if (Contenido.Children.Contains(Limpiador)) _ = Limpiador.AnalizarAsync(categoria);
+        if (Contenido.Children.Contains(Limpiador) && (categoria != null || !Limpiador.TieneAnalisisVigente))
+            _ = Limpiador.AnalizarAsync(categoria);
     }
 }
 
@@ -54,6 +55,10 @@ public sealed partial class LimpiezaVista : UserControl
     private readonly HashSet<AnalisisLimpieza> marcados = [];
     private List<AnalisisLimpieza> grupos = [];
     private bool ocupado;
+
+    private long? finUltimoAnalisisCompleto;
+    internal bool TieneAnalisisVigente => finUltimoAnalisisCompleto is long fin &&
+        System.Diagnostics.Stopwatch.GetElapsedTime(fin) < TimeSpan.FromMinutes(30);
 
     internal bool EnCurso => ocupado;
 
@@ -124,6 +129,7 @@ public sealed partial class LimpiezaVista : UserControl
                 Avance.Value = 100;
                 ActualizarFilas();
                 if (categoria != null && grupos[0].Archivos.Count > 0) AbrirDetalle(grupos[0]);
+                finUltimoAnalisisCompleto = categoria == null ? System.Diagnostics.Stopwatch.GetTimestamp() : null;
             }
             catch
             {
@@ -291,13 +297,17 @@ public sealed partial class LimpiezaVista : UserControl
             try
             {
                 var resultado = await Task.Run(() => Limpieza.Borrar(elegidos, token));
-                grupos.Clear();
-                RestablecerDetalle();
-                ActualizarFilas();
                 TituloEstado.Text = resultado.Cancelado ? "Limpieza cancelada" : "Limpieza terminada";
-                Espacio.Text = Limpieza.Formato(resultado.Bytes);
                 Estado.Text = $"Archivos borrados: {resultado.Borrados:N0} · Omitidos: {resultado.Omitidos:N0}";
-                if (!resultado.Cancelado || resultado.Borrados > 0) resumen = TituloEstado.Text + " · " + Estado.Text;
+                if (resultado.Borrados > 0)
+                {
+                    finUltimoAnalisisCompleto = null;
+                    grupos.Clear();
+                    RestablecerDetalle();
+                    ActualizarFilas();
+                    Espacio.Text = Limpieza.Formato(resultado.Bytes);
+                    resumen = TituloEstado.Text + " · " + Estado.Text;
+                }
                 if (resultado.Cancelado) token.ThrowIfCancellationRequested();
             }
             finally { Ocupado(false); }
