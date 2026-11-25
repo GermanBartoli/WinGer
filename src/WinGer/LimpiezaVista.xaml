@@ -75,9 +75,5 @@
         </Grid>
       </Grid>
     </TabViewItem>
-    <TabViewItem Header="Apariencia" IsClosable="False">
-      <TabViewItem.IconSource><SymbolIconSource Symbol="Setting"/></TabViewItem.IconSource>
-      <StackPanel x:Name="Opciones" Padding="12,16" Spacing="12"/>
-    </TabViewItem>
   </TabView>
 </UserControl>

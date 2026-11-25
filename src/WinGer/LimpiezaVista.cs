@@ -11,7 +11,7 @@ public sealed partial class MainWindow
     private CategoriaLimpieza? categoriaAlEntrar;
     private bool analisisAlEntrarPendiente;
 
-    private LimpiezaVista Limpiador => vistaLimpieza ??= new LimpiezaVista(Ejecutar, CrearSelectorTema(), () => configuracion.Tema);
+    private LimpiezaVista Limpiador => vistaLimpieza ??= new LimpiezaVista(Ejecutar);
 
     private Task RevisarCacheExplorador(CategoriaLimpieza categoria)
     {
@@ -57,12 +57,10 @@ public sealed partial class LimpiezaVista : UserControl
 
     internal bool EnCurso => ocupado;
 
-    public LimpiezaVista(Func<string, Func<CancellationToken, Task>, Task> ejecutar, ComboBox tema, Func<string> leerTema)
+    public LimpiezaVista(Func<string, Func<CancellationToken, Task>, Task> ejecutar)
     {
         this.ejecutar = ejecutar;
         InitializeComponent();
-        Opciones.Children.Add(tema);
-        Opciones.Loaded += (_, _) => tema.SelectedItem = leerTema();
         FamiliaLimpieza[] familias = [new("Todas", "\uE8A9"), new("Windows", "\uE7F4"), new("Navegadores", "\uE774"),
             new("Desarrollo", "\uE943"), new("Aplicaciones", "\uECAA")];
         Familias.ItemsSource = familias;
@@ -169,7 +167,7 @@ public sealed partial class LimpiezaVista : UserControl
     private void RestablecerDetalle()
     {
         Pestanas.SelectedIndex = 0;
-        while (Pestanas.TabItems.Count > 2) Pestanas.TabItems.RemoveAt(2);
+        while (Pestanas.TabItems.Count > 1) Pestanas.TabItems.RemoveAt(1);
         marcados.Clear();
         ActualizarSeleccion();
     }
