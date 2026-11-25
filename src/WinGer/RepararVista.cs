@@ -18,6 +18,11 @@ public sealed partial class MainWindow
         pestanas.Items.Add(new PivotItem { Header = "Solución de problemas", Content = CrearSolucionadores(pestanas) });
         pestanas.SelectedIndex = indice;
         Contenido.Children.Add(pestanas);
+        pestanas.SelectionChanged += (_, _) =>
+        {
+            if (Contenido.Children.Contains(pestanas) && pestanas.SelectedIndex >= 0)
+                RegistrarDestino(Navegacion.SelectedItem, pestanas.SelectedIndex);
+        };
     }
     private StackPanel CrearComandos()
     {
@@ -102,6 +107,9 @@ public sealed partial class MainWindow
         fondo.Children.Add(estado);
         tarjetas.Children.Add(marcoFondo);
 
+        contenido.Children.Add(tarjetas);
+        contenido.Children.Add(new TextBlock { Text = "Gráficos e iconos", FontSize = 22, Margin = new Thickness(0, 24, 0, 12) });
+        var graficos = new PanelAjustable { AnchoElemento = 420 };
         var amd = new StackPanel { Spacing = 12 };
         amd.Children.Add(new TextBlock { Text = "Fallos gráficos con AMD", FontSize = 22 });
         amd.Children.Add(Texto("Si sospechás que un juego tiene problemas con los sombreadores, abrí AMD Software y buscá «Restablecer caché de sombreadores» en Gráficos → Avanzado. La próxima carga puede tardar más."));
@@ -114,7 +122,7 @@ public sealed partial class MainWindow
         abrirAmd.IsEnabled = File.Exists(rutaAmd);
         amd.Children.Add(abrirAmd);
         if (!abrirAmd.IsEnabled) amd.Children.Add(Texto("WinGer no encontró AMD Software en su carpeta de instalación habitual."));
-        tarjetas.Children.Add(MarcoHerramienta(amd));
+        graficos.Children.Add(MarcoHerramienta(amd));
 
         var explorador = new StackPanel { Spacing = 12 };
         explorador.Children.Add(new TextBlock { Text = "Iconos en blanco o miniaturas incorrectas", FontSize = 22, TextWrapping = TextWrapping.Wrap });
@@ -123,8 +131,8 @@ public sealed partial class MainWindow
         botones.Children.Add(Boton("Revisar iconos", () => RevisarCacheExplorador(Limpieza.Iconos)));
         botones.Children.Add(Boton("Revisar miniaturas", () => RevisarCacheExplorador(Limpieza.Miniaturas)));
         explorador.Children.Add(botones);
-        tarjetas.Children.Add(MarcoHerramienta(explorador));
-        contenido.Children.Add(tarjetas);
+        graficos.Children.Add(MarcoHerramienta(explorador));
+        contenido.Children.Add(graficos);
         var enlace = new HyperlinkButton { Content = "Revisar archivos del sistema (DISM y SFC)", Margin = new Thickness(0, 12, 0, 0) };
         enlace.Click += (_, _) => pestanas.SelectedIndex = 0;
         contenido.Children.Add(enlace);
@@ -137,7 +145,19 @@ public sealed partial class MainWindow
         {
             resultado = ResultadosReparacion.Interpretar(comando, resultado.Inicio, resultado.Fin, resultado.Codigo, resultado.Salida);
             cuerpo.Children.Add(Texto(resultado.Mensaje));
-            cuerpo.Children.Add(Texto($"Última ejecución: {resultado.Inicio.ToLocalTime():g} · Duración: {(resultado.Fin - resultado.Inicio).TotalSeconds:N0} s · Código: {resultado.Codigo?.ToString() ?? "sin confirmar"}"));
+            var fecha = resultado.Inicio.ToLocalTime();
+            var dias = (DateTime.Today - fecha.Date).Days;
+            var antiguedad = dias switch
+            {
+                < 0 => "Fecha futura",
+                0 => "Reciente · Hoy",
+                1 => "Reciente · Ayer",
+                _ => $"Hace {dias} días"
+            };
+            var ultima = Texto($"Última ejecución: {fecha:g}\n{antiguedad}");
+            ultima.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
+            cuerpo.Children.Insert(1, ultima);
+            cuerpo.Children.Add(Texto($"Código: {resultado.Codigo?.ToString() ?? "sin confirmar"}"));
             var color = resultado.Nivel == "verde" ? Windows.UI.Color.FromArgb(255, 46, 160, 90) : resultado.Nivel == "rojo" ? Windows.UI.Color.FromArgb(255, 220, 65, 65) : Windows.UI.Color.FromArgb(255, 210, 160, 35);
             marco.BorderBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(color); marco.BorderThickness = new Thickness(2);
             marco.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(35, color.R, color.G, color.B));
@@ -165,8 +185,9 @@ public sealed partial class MainWindow
                 detalle.Width = Math.Max(240, Math.Min(780, Raiz.ActualWidth - 100));
                 await dialogo.ShowAsync();
             }));
+            cuerpo.Children.Add(Texto($"Duración: {(resultado.Fin - resultado.Inicio).TotalSeconds:N0} s"));
         }
-        else cuerpo.Children.Add(Texto("Todavía no se ejecutó desde esta versión de WinGer."));
+        else cuerpo.Children.Insert(1, Texto("Todavía no se ejecutó desde esta versión de WinGer."));
     }
 
     private async Task EjecutarReparacion(ComandoReparacion comando)

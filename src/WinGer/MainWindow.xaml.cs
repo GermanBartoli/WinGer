@@ -20,6 +20,8 @@ public sealed partial class MainWindow : Window
     private CancellationTokenSource? cancelacion;
     private bool salir;
     private bool inicializado;
+    private readonly List<(object Seccion, int Pestana)> destinos = [];
+    private int posicion = -1;
     private string salidaVirus = "Consultá un hash o calculá el SHA-256 de un archivo local. Calcular el hash no sube el archivo.";
     private string hashActual = "";
     private TextBox? resultados;
@@ -53,20 +55,55 @@ public sealed partial class MainWindow : Window
             else cancelacion?.Cancel();
         };
         AplicarTema();
+        RegistrarDestino(Navegacion.MenuItems[0], 0);
+        Raiz.AddHandler(UIElement.PointerPressedEvent,
+            new Microsoft.UI.Xaml.Input.PointerEventHandler(NavegarConMouse), true);
         inicializado = true;
         IniciarGraficos();
         MostrarActualizaciones();
     }
+    private void RegistrarDestino(object seccion, int pestana)
+    {
+        var destino = (seccion, pestana);
+        if (posicion >= 0 && destinos[posicion] == destino) return;
+        destinos.RemoveRange(posicion + 1, destinos.Count - posicion - 1);
+        destinos.Add(destino);
+        posicion++;
+    }
+
+    private void NavegarConMouse(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs args)
+    {
+        var cambio = args.GetCurrentPoint(Raiz).Properties.PointerUpdateKind;
+        var paso = cambio switch
+        {
+            Microsoft.UI.Input.PointerUpdateKind.XButton1Pressed => -1,
+            Microsoft.UI.Input.PointerUpdateKind.XButton2Pressed => 1,
+            _ => 0
+        };
+        var siguiente = posicion + paso;
+        if (paso == 0 || siguiente < 0 || siguiente >= destinos.Count) return;
+        var destino = destinos[siguiente];
+        posicion = siguiente;
+        if (Navegacion.SelectedItem != destino.Seccion)
+            Navegacion.SelectedItem = destino.Seccion;
+        else if (Contenido.Children.OfType<Pivot>().FirstOrDefault() is { } pestanas)
+            pestanas.SelectedIndex = destino.Pestana;
+        args.Handled = true;
+    }
+
     private void CambiarSeccion(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
     {
         if (!inicializado) return;
+        if (args.SelectedItem is null) return;
+        var pestana = destinos[posicion].Seccion == args.SelectedItem ? destinos[posicion].Pestana : 0;
+        RegistrarDestino(args.SelectedItem, pestana);
         if (args.IsSettingsSelected) MostrarConfiguracion();
         else switch ((args.SelectedItem as NavigationViewItem)?.Tag?.ToString())
         {
             case "explorar": MostrarExplorar(); break;
             case "graficos": MostrarGraficos(); break;
             case "limpieza": MostrarLimpieza(); break;
-            case "reparar": MostrarReparar(); break;
+            case "reparar": MostrarReparar(pestana); break;
             case "proteccion": MostrarProteccion(); break;
             case "store": MostrarStore(); break;
             case "virus": MostrarVirus(); break;
