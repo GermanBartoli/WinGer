@@ -22,6 +22,7 @@ public sealed partial class MainWindow
             e.Handled = true;
             if (Uri.TryCreate(e.Uri, UriKind.Absolute, out var destino) && destino.Scheme == "https") navegador.Source = destino;
         };
+        navegador.AllowDrop = true;
         navegador.CoreWebView2.DownloadStarting += (_, e) => e.Cancel = true;
     }
 

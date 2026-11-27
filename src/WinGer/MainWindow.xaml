@@ -48,7 +48,7 @@
         <NavigationViewItem Content="VirusTotal" Tag="virus" Icon="ProtectedDocument"/>
         <NavigationViewItem Content="Historial" Tag="historial" Icon="Clock"/>
       </NavigationView.MenuItems>
-      <NavigationView.PaneFooter><TextBlock Text="WinGer · Vista previa 0.9.10" Margin="16" Opacity="0.5"/></NavigationView.PaneFooter>
+      <NavigationView.PaneFooter><TextBlock Text="WinGer · Vista previa 0.9.11" Margin="16" Opacity="0.5"/></NavigationView.PaneFooter>
       <Grid>
         <ScrollViewer x:Name="PanelGeneral" HorizontalContentAlignment="Stretch" HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled"><StackPanel x:Name="Contenido" Margin="32,24,32,32" Spacing="20" HorizontalAlignment="Stretch"/></ScrollViewer>
         <Grid x:Name="PanelVirus" Visibility="Collapsed" RowSpacing="8" Padding="12">
