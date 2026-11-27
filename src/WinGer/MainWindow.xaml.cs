@@ -108,8 +108,7 @@ public sealed partial class MainWindow : Window
             case "reparar": MostrarReparar(pestana); break;
             case "proteccion": MostrarProteccion(); break;
             case "store": MostrarStore(); break;
-            case "virus": MostrarVirus(); break;
-            case "subidaVirus": MostrarWebVirus(); break;
+            case "virus": MostrarWebVirus(); break;
             case "historial": MostrarHistorial(); break;
             default: MostrarActualizaciones(); break;
         }
@@ -226,7 +225,7 @@ public sealed partial class MainWindow : Window
             navegador.NavigationCompleted += (_, evento) =>
             {
                 if (!evento.IsSuccess)
-                    Modelo.Estado = "No se pudo cargar VirusTotal. Volvé a la página de carga para reintentar.";
+                    Modelo.Estado = "No se pudo cargar VirusTotal. Pulsá Subir archivo para reintentar.";
             };
             navegador.Source = direccionSubida;
             navegadorVirus = navegador;
@@ -235,7 +234,7 @@ public sealed partial class MainWindow : Window
         {
             MarcoVirus.Children.Clear();
             navegador.Close();
-            MarcoVirus.Children.Add(Texto("No se pudo abrir VirusTotal. Volvé a la página de carga para reintentar. " + error.Message));
+            MarcoVirus.Children.Add(Texto("No se pudo abrir VirusTotal. Pulsá Subir archivo para reintentar. " + error.Message));
         }
         finally { iniciandoWebVirus = false; }
     }
@@ -247,9 +246,17 @@ public sealed partial class MainWindow : Window
         else navegadorVirus.Source = direccionSubida;
     }
 
+    private void AbrirConsultasVirus(object sender, RoutedEventArgs args)
+    {
+        PanelVirus.Visibility = Visibility.Collapsed;
+        PanelGeneral.Visibility = Visibility.Visible;
+        MostrarVirus();
+    }
+
     private void MostrarVirus()
     {
         Encabezado("Centro VirusTotal", "Dos accesos al mismo servicio: API para informes de hashes y vt-cli para consultar, subir archivos y recuperar análisis.");
+        Contenido.Children.Add(Boton("Volver a la página de carga", () => { MostrarWebVirus(); return Task.CompletedTask; }));
         var hash = new TextBox { Header = "Hash MD5, SHA-1 o SHA-256", PlaceholderText = "Pegá el hash o calculalo desde un archivo", Text = hashActual };
         hash.TextChanged += (_, _) => { hashActual = hash.Text; GuardarCache(); };
         Contenido.Children.Add(hash);

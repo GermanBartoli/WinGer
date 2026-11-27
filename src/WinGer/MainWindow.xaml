@@ -46,7 +46,6 @@
         <NavigationViewItem Content="Protección" Tag="proteccion" Icon="Permissions"/>
         <NavigationViewItem Content="Microsoft Store" Tag="store" Icon="Shop"/>
         <NavigationViewItem Content="VirusTotal" Tag="virus" Icon="ProtectedDocument"/>
-        <NavigationViewItem Content="VirusTotal subir archivo" Tag="subidaVirus" Icon="Upload"/>
         <NavigationViewItem Content="Historial" Tag="historial" Icon="Clock"/>
       </NavigationView.MenuItems>
       <NavigationView.PaneFooter><TextBlock Text="WinGer · Vista previa 0.9.10" Margin="16" Opacity="0.5"/></NavigationView.PaneFooter>
@@ -54,7 +53,10 @@
         <ScrollViewer x:Name="PanelGeneral" HorizontalContentAlignment="Stretch" HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled"><StackPanel x:Name="Contenido" Margin="32,24,32,32" Spacing="20" HorizontalAlignment="Stretch"/></ScrollViewer>
         <Grid x:Name="PanelVirus" Visibility="Collapsed" RowSpacing="8" Padding="12">
           <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-          <Button Content="Volver a la página de carga" Click="VolverASubida"/>
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Content="Subir archivo" Click="VolverASubida"/>
+            <Button Content="Consultas por hash y vt-cli" Click="AbrirConsultasVirus"/>
+          </StackPanel>
           <Grid x:Name="MarcoVirus" Grid.Row="1"/>
         </Grid>
       </Grid>
