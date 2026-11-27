@@ -9,6 +9,22 @@ namespace WinGer;
 
 public sealed partial class MainWindow
 {
+    private static async Task InicializarNavegadorVirus(WebView2 navegador, CancellationToken token)
+    {
+        var entorno = await Microsoft.Web.WebView2.Core.CoreWebView2Environment.CreateWithOptionsAsync(null,
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WinGer", "WebView2"), null);
+        token.ThrowIfCancellationRequested();
+        await navegador.EnsureCoreWebView2Async(entorno);
+        token.ThrowIfCancellationRequested();
+        // La cuenta y los informes usan el mismo perfil persistente; no se captura la contraseña.
+        navegador.CoreWebView2.NewWindowRequested += (_, e) =>
+        {
+            e.Handled = true;
+            if (Uri.TryCreate(e.Uri, UriKind.Absolute, out var destino) && destino.Scheme == "https") navegador.Source = destino;
+        };
+        navegador.CoreWebView2.DownloadStarting += (_, e) => e.Cancel = true;
+    }
+
     private sealed class VentanaWeb
     {
         public Window Ventana { get; } = new();
@@ -18,7 +34,7 @@ public sealed partial class MainWindow
         private readonly StackPanel botones = Fila();
         public bool Cerrada { get; private set; }
 
-        public VentanaWeb(Configuracion configuracion, Action guardar, string titulo, Action? alIniciarSesion = null, string? informe = null)
+        public VentanaWeb(Configuracion configuracion, Action guardar, string titulo, Action? alNavegarManualmente = null, string? informe = null)
         {
             Ventana.Title = titulo;
             Ventana.AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "WinGer.ico"));
@@ -55,7 +71,9 @@ public sealed partial class MainWindow
             }
             Agregar("Atrás", () => { if (Navegador.CoreWebView2?.CanGoBack == true) Navegador.CoreWebView2.GoBack(); });
             Agregar("Recargar", () => Navegador.CoreWebView2?.Reload());
-            Agregar("Mi cuenta / Iniciar sesión", () => { alIniciarSesion?.Invoke(); Navegador.Source = new Uri("https://www.virustotal.com/gui/sign-in"); });
+            Agregar("Mi cuenta / Iniciar sesión", () => { alNavegarManualmente?.Invoke(); Navegador.Source = new Uri("https://www.virustotal.com/gui/sign-in"); });
+            if (alNavegarManualmente is not null)
+                Agregar("Subir archivo", () => { alNavegarManualmente(); Navegador.Source = direccionSubida; });
             if (informe is not null) Agregar("Volver al informe", () => Navegador.Source = new Uri(informe));
             barra.Children.Add(botones);
             var direccion = new TextBox { IsReadOnly = true, Text = "https://www.virustotal.com", PlaceholderText = "Dirección de la página" };
@@ -71,18 +89,7 @@ public sealed partial class MainWindow
 
         public async Task Iniciar(string url, CancellationToken token)
         {
-            var entorno = await Microsoft.Web.WebView2.Core.CoreWebView2Environment.CreateWithOptionsAsync(null,
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WinGer", "WebView2"), null);
-            token.ThrowIfCancellationRequested();
-            await Navegador.EnsureCoreWebView2Async(entorno);
-            token.ThrowIfCancellationRequested();
-            // La cuenta y los informes usan el mismo perfil persistente; no se captura la contraseña.
-            Navegador.CoreWebView2.NewWindowRequested += (_, e) =>
-            {
-                e.Handled = true;
-                if (Uri.TryCreate(e.Uri, UriKind.Absolute, out var destino) && destino.Scheme == "https") Navegador.Source = destino;
-            };
-            Navegador.CoreWebView2.DownloadStarting += (_, e) => e.Cancel = true;
+            await InicializarNavegadorVirus(Navegador, token);
             Navegador.Source = new Uri(url);
             foreach (var boton in botones.Children.OfType<Button>()) boton.IsEnabled = true;
         }

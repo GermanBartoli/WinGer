@@ -97,6 +97,8 @@ public sealed partial class MainWindow : Window
         if (args.SelectedItem is null) return;
         var pestana = destinos[posicion].Seccion == args.SelectedItem ? destinos[posicion].Pestana : 0;
         RegistrarDestino(args.SelectedItem, pestana);
+        PanelVirus.Visibility = Visibility.Collapsed;
+        PanelGeneral.Visibility = Visibility.Visible;
         if (args.IsSettingsSelected) MostrarConfiguracion();
         else switch ((args.SelectedItem as NavigationViewItem)?.Tag?.ToString())
         {
@@ -107,6 +109,7 @@ public sealed partial class MainWindow : Window
             case "proteccion": MostrarProteccion(); break;
             case "store": MostrarStore(); break;
             case "virus": MostrarVirus(); break;
+            case "subidaVirus": MostrarWebVirus(); break;
             case "historial": MostrarHistorial(); break;
             default: MostrarActualizaciones(); break;
         }
@@ -204,6 +207,46 @@ public sealed partial class MainWindow : Window
         FiltrarPaquetes();
         Contenido.Children.Add(Texto("Consultar un informe existente no vuelve a analizar ni sube el archivo. El botón web no consume tu cuota de API. Al actualizar se descarga y verifica el archivo real; verde no garantiza seguridad."));
     }
+    private WebView2? navegadorVirus;
+    private bool iniciandoWebVirus;
+    private static readonly Uri direccionSubida = new("https://www.virustotal.com/gui/home/upload");
+
+    private async void MostrarWebVirus()
+    {
+        PanelGeneral.Visibility = Visibility.Collapsed;
+        PanelVirus.Visibility = Visibility.Visible;
+        if (iniciandoWebVirus || navegadorVirus is not null) return;
+        iniciandoWebVirus = true;
+        var navegador = new WebView2();
+        MarcoVirus.Children.Clear();
+        MarcoVirus.Children.Add(navegador);
+        try
+        {
+            await InicializarNavegadorVirus(navegador, CancellationToken.None);
+            navegador.NavigationCompleted += (_, evento) =>
+            {
+                if (!evento.IsSuccess)
+                    Modelo.Estado = "No se pudo cargar VirusTotal. Volvé a la página de carga para reintentar.";
+            };
+            navegador.Source = direccionSubida;
+            navegadorVirus = navegador;
+        }
+        catch (Exception error)
+        {
+            MarcoVirus.Children.Clear();
+            navegador.Close();
+            MarcoVirus.Children.Add(Texto("No se pudo abrir VirusTotal. Volvé a la página de carga para reintentar. " + error.Message));
+        }
+        finally { iniciandoWebVirus = false; }
+    }
+
+    private void VolverASubida(object sender, RoutedEventArgs args)
+    {
+        if (navegadorVirus is null) MostrarWebVirus();
+        else if (navegadorVirus.Source == direccionSubida) navegadorVirus.Reload();
+        else navegadorVirus.Source = direccionSubida;
+    }
+
     private void MostrarVirus()
     {
         Encabezado("Centro VirusTotal", "Dos accesos al mismo servicio: API para informes de hashes y vt-cli para consultar, subir archivos y recuperar análisis.");
